@@ -8,5 +8,6 @@ namespace FitnessCal.DAL.Implement
     {
         public UserMealLogRepository(FitnessCalContext context) : base(context)
         {
+        }
     }
 }
