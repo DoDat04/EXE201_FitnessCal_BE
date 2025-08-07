@@ -1,7 +1,8 @@
-﻿using FitnessCal.Domain;
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
-namespace FitnessCal.DAL.Context;
+namespace FitnessCal.Domain;
 
 public partial class FitnessCalContext : DbContext
 {
@@ -15,10 +16,17 @@ public partial class FitnessCalContext : DbContext
     }
 
     public virtual DbSet<Food> Foods { get; set; }
+
     public virtual DbSet<PredefinedDish> PredefinedDishes { get; set; }
+
     public virtual DbSet<User> Users { get; set; }
+
+    public virtual DbSet<UserDailyIntake> UserDailyIntakes { get; set; }
+
     public virtual DbSet<UserHealth> UserHealths { get; set; }
+
     public virtual DbSet<UserMealItem> UserMealItems { get; set; }
+
     public virtual DbSet<UserMealLog> UserMealLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -26,12 +34,14 @@ public partial class FitnessCalContext : DbContext
         modelBuilder.Entity<Food>(entity =>
         {
             entity.HasKey(e => e.FoodId).HasName("PK__Foods__856DB3EBD50CF461");
+
             entity.Property(e => e.Name).HasMaxLength(100);
         });
 
         modelBuilder.Entity<PredefinedDish>(entity =>
         {
             entity.HasKey(e => e.DishId).HasName("PK__Predefin__18834F509BB445B4");
+
             entity.Property(e => e.Name).HasMaxLength(100);
             entity.Property(e => e.ServingUnit).HasMaxLength(50);
         });
@@ -39,6 +49,7 @@ public partial class FitnessCalContext : DbContext
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(e => e.UserId).HasName("PK__Users__CB9A1CFFA00B4B3E");
+
             entity.HasIndex(e => e.Email, "UQ__Users__AB6E6164CBF40468").IsUnique();
 
             entity.Property(e => e.UserId)
@@ -64,9 +75,26 @@ public partial class FitnessCalContext : DbContext
                 .HasColumnName("role");
         });
 
+        modelBuilder.Entity<UserDailyIntake>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__UserDail__3214EC073B8B9395");
+
+            entity.ToTable("UserDailyIntake");
+
+            entity.Property(e => e.LastUpdated)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.TotalCalories).HasDefaultValue(0.0);
+
+            entity.HasOne(d => d.User).WithMany(p => p.UserDailyIntakes)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("FK__UserDaily__UserI__6FE99F9F");
+        });
+
         modelBuilder.Entity<UserHealth>(entity =>
         {
             entity.HasKey(e => e.UserId).HasName("PK__UserHeal__CB9A1CFFD2662413");
+
             entity.ToTable("UserHealth");
 
             entity.Property(e => e.UserId)
@@ -75,6 +103,7 @@ public partial class FitnessCalContext : DbContext
             entity.Property(e => e.ActivityLevel)
                 .HasMaxLength(20)
                 .HasColumnName("activity_level");
+            entity.Property(e => e.DailyCalories).HasColumnName("daily_calories");
             entity.Property(e => e.DateOfBirth).HasColumnName("date_of_birth");
             entity.Property(e => e.DietType)
                 .HasMaxLength(30)
@@ -86,7 +115,9 @@ public partial class FitnessCalContext : DbContext
             entity.Property(e => e.Goal)
                 .HasMaxLength(20)
                 .HasColumnName("goal");
-            entity.Property(e => e.GoalNote).HasColumnName("goal_note");
+            entity.Property(e => e.GoalNote)
+                .HasMaxLength(50)
+                .HasColumnName("goal_note");
             entity.Property(e => e.HeightCm)
                 .HasColumnType("decimal(5, 2)")
                 .HasColumnName("height_cm");
@@ -108,21 +139,32 @@ public partial class FitnessCalContext : DbContext
 
         modelBuilder.Entity<UserMealItem>(entity =>
         {
-            entity.HasKey(e => e.MealItemId).HasName("PK__UserMeal__B4B7B7B7B7B7B7B7");
-            entity.Property(e => e.FoodId).HasColumnName("food_id");
-            entity.Property(e => e.MealItemId).HasColumnName("meal_item_id");
-            entity.Property(e => e.MealLogId).HasColumnName("meal_log_id");
-            entity.Property(e => e.Quantity).HasColumnName("quantity");
-            entity.Property(e => e.ServingSize).HasColumnName("serving_size");
+            entity.HasKey(e => e.ItemId).HasName("PK__UserMeal__727E838BCB2D3C87");
+
+            entity.HasOne(d => d.Dish).WithMany(p => p.UserMealItems)
+                .HasForeignKey(d => d.DishId)
+                .HasConstraintName("FK__UserMealI__DishI__66603565");
+
+            entity.HasOne(d => d.Food).WithMany(p => p.UserMealItems)
+                .HasForeignKey(d => d.FoodId)
+                .HasConstraintName("FK__UserMealI__FoodI__6754599E");
+
+            entity.HasOne(d => d.Log).WithMany(p => p.UserMealItems)
+                .HasForeignKey(d => d.LogId)
+                .HasConstraintName("FK__UserMealI__LogId__656C112C");
         });
 
         modelBuilder.Entity<UserMealLog>(entity =>
         {
-            entity.HasKey(e => e.MealLogId).HasName("PK__UserMeal__B4B7B7B7B7B7B7B7");
-            entity.Property(e => e.MealLogId).HasColumnName("meal_log_id");
-            entity.Property(e => e.MealDate).HasColumnName("meal_date");
-            entity.Property(e => e.MealType).HasColumnName("meal_type");
-            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.HasKey(e => e.LogId).HasName("PK__UserMeal__5E548648EC0A39B8");
+
+            entity.ToTable("UserMealLog");
+
+            entity.Property(e => e.MealType).HasMaxLength(50);
+
+            entity.HasOne(d => d.User).WithMany(p => p.UserMealLogs)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("FK__UserMealL__UserI__628FA481");
         });
 
         OnModelCreatingPartial(modelBuilder);

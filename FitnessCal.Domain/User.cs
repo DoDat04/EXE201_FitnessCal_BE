@@ -21,6 +21,8 @@ public partial class User
 
     public DateTime? CreatedAt { get; set; }
 
+    public virtual ICollection<UserDailyIntake> UserDailyIntakes { get; set; } = new List<UserDailyIntake>();
+
     public virtual UserHealth? UserHealth { get; set; }
 
     public virtual ICollection<UserMealLog> UserMealLogs { get; set; } = new List<UserMealLog>();

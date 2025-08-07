@@ -29,5 +29,7 @@ public partial class UserHealth
 
     public string? GoalNote { get; set; }
 
+    public double? DailyCalories { get; set; }
+
     public virtual User User { get; set; } = null!;
 }

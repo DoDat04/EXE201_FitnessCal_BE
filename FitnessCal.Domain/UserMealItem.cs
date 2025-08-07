@@ -5,9 +5,9 @@ namespace FitnessCal.Domain;
 
 public partial class UserMealItem
 {
-    public int MealItemId { get; set; }
+    public int ItemId { get; set; }
 
-    public int? MealLogId { get; set; }
+    public int? LogId { get; set; }
 
     public bool IsCustom { get; set; }
 
@@ -17,7 +17,7 @@ public partial class UserMealItem
 
     public double Quantity { get; set; }
 
-    public double? ServingSize { get; set; }
+    public double? Calories { get; set; }
 
     public virtual PredefinedDish? Dish { get; set; }
 

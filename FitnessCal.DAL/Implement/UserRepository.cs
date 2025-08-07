@@ -1,5 +1,4 @@
-﻿using FitnessCal.DAL.Context;
-using FitnessCal.DAL.Define;
+﻿using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 using Microsoft.EntityFrameworkCore;
 

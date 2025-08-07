@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using FitnessCal.Domain;
-
+﻿
 namespace FitnessCal.DAL.Define
 {
     public interface IUnitOfWork

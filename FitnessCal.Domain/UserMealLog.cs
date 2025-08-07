@@ -5,7 +5,7 @@ namespace FitnessCal.Domain;
 
 public partial class UserMealLog
 {
-    public int MealLogId { get; set; }
+    public int LogId { get; set; }
 
     public Guid? UserId { get; set; }
 

@@ -1,7 +1,7 @@
-using FitnessCal.DAL.Context;
 using FitnessCal.DAL.Define;
 using FitnessCal.BLL.Define;
 using Microsoft.EntityFrameworkCore;
+using FitnessCal.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
 
