@@ -11,5 +11,6 @@ namespace FitnessCal.BLL.Define
     public interface IUserMealItemService
     {
         Task<AddMealItemResponseDTO> AddMealItemAsync(AddMealItemDTO dto);
+        Task<DeleteMealItemResponseDTO> DeleteMealItemAsync(int itemId);
     }
 }

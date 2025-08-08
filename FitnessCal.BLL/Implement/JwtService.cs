@@ -2,6 +2,7 @@
 using FitnessCal.Domain;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
@@ -10,17 +11,18 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using FitnessCal.BLL.DTO.CommonDTO;
 
 namespace FitnessCal.BLL.Implement
 {
     public class JwtService : IJwtService
     {
-        private readonly IConfiguration _config;
+        private readonly IOptions<JwtSettings> _jwtSettings;
         private readonly ILogger<JwtService> _logger;
 
-        public JwtService(IConfiguration config, ILogger<JwtService> logger)
+        public JwtService(IOptions<JwtSettings> jwtSettings, ILogger<JwtService> logger)
         {
-            _config = config;
+            _jwtSettings = jwtSettings;
             _logger = logger;
         }
 
@@ -35,8 +37,8 @@ namespace FitnessCal.BLL.Implement
 
             return GenerateToken(
                 claims,
-                _config["Jwt:AccessSecretKey"]!,
-                int.Parse(_config["Jwt:AccessExpiration"]!)
+                _jwtSettings.Value.AccessSecretKey,
+                _jwtSettings.Value.AccessExpiration
             );
         }
 
@@ -50,8 +52,8 @@ namespace FitnessCal.BLL.Implement
 
             return GenerateToken(
                 claims,
-                _config["Jwt:RefreshSecretKey"]!,
-                int.Parse(_config["Jwt:RefreshExpiration"]!)
+                _jwtSettings.Value.RefreshSecretKey,
+                _jwtSettings.Value.RefreshExpiration
             );
         }
 
@@ -61,8 +63,8 @@ namespace FitnessCal.BLL.Implement
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
+                issuer: _jwtSettings.Value.Issuer,
+                audience: _jwtSettings.Value.Audience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(expirationMinutes),
                 signingCredentials: credentials
@@ -74,7 +76,7 @@ namespace FitnessCal.BLL.Implement
         public ClaimsPrincipal? ValidateRefreshToken(string refreshToken)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_config["Jwt:RefreshSecretKey"]!);
+            var key = Encoding.UTF8.GetBytes(_jwtSettings.Value.RefreshSecretKey);
 
             try
             {
@@ -84,8 +86,8 @@ namespace FitnessCal.BLL.Implement
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = true,
                     ValidateAudience = true,
-                    ValidIssuer = _config["Jwt:Issuer"],
-                    ValidAudience = _config["Jwt:Audience"],
+                    ValidIssuer = _jwtSettings.Value.Issuer,
+                    ValidAudience = _jwtSettings.Value.Audience,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 }, out _);

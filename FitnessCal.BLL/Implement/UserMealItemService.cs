@@ -5,11 +5,6 @@ using FitnessCal.BLL.Constants;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FitnessCal.BLL.Implement
 {
@@ -53,7 +48,6 @@ namespace FitnessCal.BLL.Implement
 
                 if (dto.FoodId.HasValue)
                 {
-                    // Food from database
                     var food = await _unitOfWork.Foods.GetByIdAsync(dto.FoodId.Value);
                     if (food == null)
                     {
@@ -67,7 +61,6 @@ namespace FitnessCal.BLL.Implement
                 }
                 else if (dto.DishId.HasValue)
                 {
-                    // Predefined dish
                     var dish = await _unitOfWork.PredefinedDishes.GetByIdAsync(dto.DishId.Value);
                     if (dish == null)
                     {
@@ -85,7 +78,6 @@ namespace FitnessCal.BLL.Implement
                     throw new ArgumentException("Phải chọn món ăn từ database hoặc món ăn định sẵn");
                 }
 
-                // Create new meal item
                 var mealItem = new UserMealItem
                 {
                     LogId = dto.MealLogId,
@@ -126,6 +118,74 @@ namespace FitnessCal.BLL.Implement
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while adding meal item to meal log {MealLogId}", dto.MealLogId);
+                throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
+            }
+        }
+
+        public async Task<DeleteMealItemResponseDTO> DeleteMealItemAsync(int itemId)
+        {
+            try
+            {
+                if (itemId <= 0)
+                {
+                    _logger.LogWarning("Invalid ItemId provided: {ItemId}", itemId);
+                    throw new ArgumentException("ItemId không hợp lệ");
+                }
+
+                var mealItem = await _unitOfWork.UserMealItems.GetByIdAsync(itemId);
+                if (mealItem == null)
+                {
+                    _logger.LogWarning("Meal item with ID {ItemId} not found", itemId);
+                    throw new KeyNotFoundException("Không tìm thấy món ăn");
+                }
+
+                string foodName = "Unknown";
+                if (mealItem.FoodId.HasValue)
+                {
+                    var food = await _unitOfWork.Foods.GetByIdAsync(mealItem.FoodId.Value);
+                    if (food != null)
+                    {
+                        foodName = food.Name;
+                    }
+                }
+                else if (mealItem.DishId.HasValue)
+                {
+                    var dish = await _unitOfWork.PredefinedDishes.GetByIdAsync(mealItem.DishId.Value);
+                    if (dish != null)
+                    {
+                        foodName = dish.Name;
+                    }
+                }
+
+                var mealLogId = mealItem.LogId ?? 0;
+
+                await _unitOfWork.UserMealItems.DeleteAsync(mealItem);
+                var result = await _unitOfWork.Save();
+
+                if (result)
+                {
+                    _logger.LogInformation("Meal item deleted successfully: {FoodName} (ID: {ItemId})", foodName, itemId);
+                }
+
+                return new DeleteMealItemResponseDTO
+                {
+                    ItemId = itemId,
+                    MealLogId = mealLogId,
+                    FoodName = foodName,
+                    Message = "Xóa món ăn thành công"
+                };
+            }
+            catch (ArgumentException)
+            {
+                throw;
+            }
+            catch (KeyNotFoundException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while deleting meal item {ItemId}", itemId);
                 throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
             }
         }

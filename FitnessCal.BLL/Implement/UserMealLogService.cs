@@ -19,11 +19,11 @@ namespace FitnessCal.BLL.Implement
             _logger = logger;
         }
 
-        public async Task<CreateUserMealLogResponseDTO> AutoCreateMealLogsAsync(CreateUserMealLogDTO dto)
+        public async Task<CreateUserMealLogResponseDTO> AutoCreateMealLogsAsync(Guid userId, CreateUserMealLogDTO dto)
         {
             try
             {
-                if (dto.UserId == null || dto.UserId == Guid.Empty)
+                if (userId == Guid.Empty)
                 {
                     _logger.LogWarning("Invalid UserId provided for meal log creation");
                     throw new ArgumentException(UserMealLogMessage.INVALID_MEAL_DATE);
@@ -35,10 +35,10 @@ namespace FitnessCal.BLL.Implement
                     throw new ArgumentException(UserMealLogMessage.INVALID_MEAL_DATE);
                 }
 
-                var user = await _unitOfWork.Users.GetByIdAsync(dto.UserId.Value);
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
                 if (user == null)
                 {
-                    _logger.LogWarning("User with ID {UserId} not found for meal log creation", dto.UserId.Value);
+                    _logger.LogWarning("User with ID {UserId} not found for meal log creation", userId);
                     throw new KeyNotFoundException(UserMessage.USER_NOT_FOUND);
                 }
 
@@ -48,7 +48,7 @@ namespace FitnessCal.BLL.Implement
                 foreach (var mealType in mealTypes)
                 {
                     var existingMealLog = await _unitOfWork.UserMealLogs.GetAllAsync(log => 
-                        log.UserId == dto.UserId.Value && 
+                        log.UserId == userId && 
                         log.MealDate == dto.MealDate && 
                         log.MealType == mealType);
 
@@ -58,13 +58,13 @@ namespace FitnessCal.BLL.Implement
                         mealLogIds.Add(existingLog.LogId);
 
                         _logger.LogInformation("Meal log already exists for user {UserId} on {MealDate} with type {MealType}", 
-                            dto.UserId.Value, dto.MealDate, mealType);
+                            userId, dto.MealDate, mealType);
                     }
                     else
                     {
                         var log = new UserMealLog
                         {
-                            UserId = dto.UserId.Value,
+                            UserId = userId,
                             MealDate = dto.MealDate,
                             MealType = mealType
                         };
@@ -73,7 +73,7 @@ namespace FitnessCal.BLL.Implement
                         mealLogIds.Add(log.LogId);
 
                         _logger.LogInformation("Meal log created successfully for user {UserId} on {MealDate} with type {MealType}", 
-                            dto.UserId.Value, dto.MealDate, mealType);
+                            userId, dto.MealDate, mealType);
                     }
                 }
 
@@ -82,12 +82,12 @@ namespace FitnessCal.BLL.Implement
                 if (result)
                 {
                     _logger.LogInformation("Auto meal logs completed for user {UserId} on {MealDate}", 
-                        dto.UserId.Value, dto.MealDate);
+                        userId, dto.MealDate);
                 }
 
                 return new CreateUserMealLogResponseDTO
                 {
-                    UserId = dto.UserId.Value,
+                    UserId = userId,
                     MealDate = dto.MealDate,
                     MealLogIds = mealLogIds,
                     Message = UserMealLogMessage.MEAL_LOG_CREATED_SUCCESS
@@ -104,7 +104,7 @@ namespace FitnessCal.BLL.Implement
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while creating meal logs for user {UserId} on {MealDate}", 
-                    dto.UserId, dto.MealDate);
+                    userId, dto.MealDate);
                 throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
             }
         }

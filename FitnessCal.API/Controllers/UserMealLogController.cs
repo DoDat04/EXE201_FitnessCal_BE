@@ -4,11 +4,13 @@ using FitnessCal.BLL.DTO.UserMealLogDTO.Request;
 using FitnessCal.BLL.DTO.UserMealLogDTO.Response;
 using FitnessCal.BLL.DTO.CommonDTO;
 using FitnessCal.BLL.Constants;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FitnessCal.API.Controllers
 {
     [Route("api/meal-logs")]
     [ApiController]
+    [Authorize]
     public class UserMealLogController : ControllerBase
     {
         private readonly IUserMealLogService _userMealLogService;
@@ -25,13 +27,24 @@ namespace FitnessCal.API.Controllers
         {
             try
             {
-                var result = await _userMealLogService.AutoCreateMealLogsAsync(dto);
+                var userId = GetCurrentUserId();
+                var result = await _userMealLogService.AutoCreateMealLogsAsync(userId, dto);
 
                 return StatusCode(ResponseCodes.StatusCodes.CREATED, new ApiResponse<CreateUserMealLogResponseDTO>
                 {
                     Success = true,
                     Message = result.Message,
                     Data = result
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized access in AutoCreateMealLogs: {Message}", ex.Message);
+                return StatusCode(ResponseCodes.StatusCodes.UNAUTHORIZED, new ApiResponse<CreateUserMealLogResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
                 });
             }
             catch (ArgumentException ex)
@@ -56,8 +69,7 @@ namespace FitnessCal.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while auto-creating meal logs for user {UserId} on {MealDate}", 
-                    dto.UserId, dto.MealDate);
+                _logger.LogError(ex, "Error occurred while auto-creating meal logs for user on {MealDate}", dto.MealDate);
                 return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<CreateUserMealLogResponseDTO>
                 {
                     Success = false,
@@ -67,13 +79,12 @@ namespace FitnessCal.API.Controllers
             }
         }
 
-        [HttpGet("by-date")]
-        public async Task<ActionResult<ApiResponse<GetMealLogsByDateResponseDTO>>> GetMealLogsByDate(
-            [FromQuery] Guid userId, 
-            [FromQuery] DateOnly date)
+        [HttpGet("by-date")]        
+        public async Task<ActionResult<ApiResponse<GetMealLogsByDateResponseDTO>>> GetMealLogsByDate([FromQuery] DateOnly date)
         {
             try
             {
+                var userId = GetCurrentUserId();
                 var result = await _userMealLogService.GetMealLogsByDateAsync(userId, date);
 
                 return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<GetMealLogsByDateResponseDTO>
@@ -81,6 +92,16 @@ namespace FitnessCal.API.Controllers
                     Success = true,
                     Message = "Lấy thông tin bữa ăn thành công",
                     Data = result
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized access in GetMealLogsByDate: {Message}", ex.Message);
+                return StatusCode(ResponseCodes.StatusCodes.UNAUTHORIZED, new ApiResponse<GetMealLogsByDateResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
                 });
             }
             catch (KeyNotFoundException ex)
@@ -95,7 +116,7 @@ namespace FitnessCal.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while getting meal logs for user {UserId} on {Date}", userId, date);
+                _logger.LogError(ex, "Error occurred while getting meal logs for user on {Date}", date);
                 return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<GetMealLogsByDateResponseDTO>
                 {
                     Success = false,
@@ -103,6 +124,16 @@ namespace FitnessCal.API.Controllers
                     Data = null
                 });
             }
+        }
+
+        private Guid GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                throw new UnauthorizedAccessException("User not authenticated");
+            }
+            return userId;
         }
     }
 }

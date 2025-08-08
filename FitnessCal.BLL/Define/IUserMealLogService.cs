@@ -5,7 +5,7 @@ namespace FitnessCal.BLL.Define
 {
     public interface IUserMealLogService
     {
-        Task<CreateUserMealLogResponseDTO> AutoCreateMealLogsAsync(CreateUserMealLogDTO dto);
+        Task<CreateUserMealLogResponseDTO> AutoCreateMealLogsAsync(Guid userId, CreateUserMealLogDTO dto);
         Task<GetMealLogsByDateResponseDTO> GetMealLogsByDateAsync(Guid userId, DateOnly date);
     }
 }
