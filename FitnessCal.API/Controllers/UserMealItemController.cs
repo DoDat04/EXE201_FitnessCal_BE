@@ -68,6 +68,62 @@ namespace FitnessCal.API.Controllers
             }
         }
 
+        [HttpPut("{itemId}")]
+        public async Task<ActionResult<ApiResponse<UpdateMealItemResponseDTO>>> UpdateMealItem(int itemId, [FromBody] UpdateMealItemDTO dto)
+        {
+            try
+            {
+                var result = await _userMealItemService.UpdateMealItemAsync(itemId, dto);
+
+                return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<UpdateMealItemResponseDTO>
+                {
+                    Success = true,
+                    Message = "Cập nhật món ăn thành công",
+                    Data = result
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid argument in UpdateMealItem: {Message}", ex.Message);
+                return StatusCode(ResponseCodes.StatusCodes.BAD_REQUEST, new ApiResponse<UpdateMealItemResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Resource not found in UpdateMealItem: {Message}", ex.Message);
+                return StatusCode(ResponseCodes.StatusCodes.NOT_FOUND, new ApiResponse<UpdateMealItemResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Invalid operation in UpdateMealItem: {Message}", ex.Message);
+                return StatusCode(ResponseCodes.StatusCodes.BAD_REQUEST, new ApiResponse<UpdateMealItemResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while updating meal item {ItemId}", itemId);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<UpdateMealItemResponseDTO>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = null
+                });
+            }
+        }
+
         [HttpDelete("{itemId}")]
         public async Task<ActionResult<ApiResponse<DeleteMealItemResponseDTO>>> DeleteMealItem(int itemId)
         {

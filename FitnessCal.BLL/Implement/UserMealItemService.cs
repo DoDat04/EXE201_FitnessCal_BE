@@ -189,5 +189,105 @@ namespace FitnessCal.BLL.Implement
                 throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
             }
         }
+
+        public async Task<UpdateMealItemResponseDTO> UpdateMealItemAsync(int itemId, UpdateMealItemDTO dto)
+        {
+            try
+            {
+                if (itemId <= 0)
+                {
+                    _logger.LogWarning("Invalid ItemId provided: {ItemId}", itemId);
+                    throw new ArgumentException("ItemId không hợp lệ");
+                }
+
+                if (dto.Quantity <= 0)
+                {
+                    _logger.LogWarning("Invalid Quantity provided: {Quantity}", dto.Quantity);
+                    throw new ArgumentException("Số lượng phải lớn hơn 0");
+                }
+
+                var mealItem = await _unitOfWork.UserMealItems.GetByIdAsync(itemId);
+                if (mealItem == null)
+                {
+                    _logger.LogWarning("Meal item with ID {ItemId} not found", itemId);
+                    throw new KeyNotFoundException("Không tìm thấy món ăn");
+                }
+
+                var oldQuantity = mealItem.Quantity;
+                var oldCalories = mealItem.Calories ?? 0;
+
+                double newCalories = 0;
+                string foodName = "Unknown";
+
+                if (mealItem.FoodId.HasValue)
+                {
+                    var food = await _unitOfWork.Foods.GetByIdAsync(mealItem.FoodId.Value);
+                    if (food == null)
+                    {
+                        _logger.LogWarning("Food with ID {FoodId} not found", mealItem.FoodId.Value);
+                        throw new KeyNotFoundException("Không tìm thấy món ăn");
+                    }
+
+                    foodName = food.Name;
+                    newCalories = food.Calories * dto.Quantity;
+                }
+                else if (mealItem.DishId.HasValue)
+                {
+                    var dish = await _unitOfWork.PredefinedDishes.GetByIdAsync(mealItem.DishId.Value);
+                    if (dish == null)
+                    {
+                        _logger.LogWarning("Dish with ID {DishId} not found", mealItem.DishId.Value);
+                        throw new KeyNotFoundException("Không tìm thấy món ăn định sẵn");
+                    }
+
+                    foodName = dish.Name;
+                    newCalories = dish.Calories * dto.Quantity;
+                }
+                else
+                {
+                    _logger.LogWarning("No food source found for meal item {ItemId}", itemId);
+                    throw new InvalidOperationException("Không tìm thấy thông tin món ăn");
+                }
+
+                mealItem.Quantity = dto.Quantity;
+                mealItem.Calories = newCalories;
+
+                var result = await _unitOfWork.Save();
+
+                if (result)
+                {
+                    _logger.LogInformation("Meal item updated successfully: {FoodName} (ID: {ItemId}) - Quantity: {OldQuantity} -> {NewQuantity}, Calories: {OldCalories} -> {NewCalories}", 
+                        foodName, itemId, oldQuantity, dto.Quantity, oldCalories, newCalories);
+                }
+
+                return new UpdateMealItemResponseDTO
+                {
+                    ItemId = itemId,
+                    MealLogId = mealItem.LogId ?? 0,
+                    FoodName = foodName,
+                    OldQuantity = oldQuantity,
+                    NewQuantity = dto.Quantity,
+                    OldCalories = oldCalories,
+                    NewCalories = newCalories
+                };
+            }
+            catch (ArgumentException)
+            {
+                throw;
+            }
+            catch (KeyNotFoundException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while updating meal item {ItemId}", itemId);
+                throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
+            }
+        }
     }
 }

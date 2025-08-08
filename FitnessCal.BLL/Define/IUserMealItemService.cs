@@ -12,5 +12,6 @@ namespace FitnessCal.BLL.Define
     {
         Task<AddMealItemResponseDTO> AddMealItemAsync(AddMealItemDTO dto);
         Task<DeleteMealItemResponseDTO> DeleteMealItemAsync(int itemId);
+        Task<UpdateMealItemResponseDTO> UpdateMealItemAsync(int itemId, UpdateMealItemDTO dto);
     }
 }
