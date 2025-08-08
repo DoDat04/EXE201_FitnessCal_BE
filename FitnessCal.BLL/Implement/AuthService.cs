@@ -2,6 +2,7 @@
 using FitnessCal.BLL.Constants;
 using FitnessCal.BLL.DTO.AuthDTO.Request;
 using FitnessCal.BLL.DTO.AuthDTO.Response;
+using FitnessCal.BLL.DTO.UserMealLogDTO.Request;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 using System.Security.Claims;
@@ -13,12 +14,14 @@ namespace FitnessCal.BLL.Implement
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IJwtService _jwtService;
+        private readonly IUserMealLogService _userMealLogService;
         private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IUnitOfWork unitOfWork, IJwtService jwtService, ILogger<AuthService> logger)
+        public AuthService(IUnitOfWork unitOfWork, IJwtService jwtService, IUserMealLogService userMealLogService, ILogger<AuthService> logger)
         {
             _unitOfWork = unitOfWork;
             _jwtService = jwtService;
+            _userMealLogService = userMealLogService;
             _logger = logger;
         }
 
@@ -76,6 +79,22 @@ namespace FitnessCal.BLL.Implement
 
             await _unitOfWork.Users.AddAsync(newUser);
             await _unitOfWork.Save();
+
+            try
+            {
+                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                var createMealLogDto = new CreateUserMealLogDTO
+                {
+                    MealDate = today
+                };
+
+                await _userMealLogService.AutoCreateMealLogsAsync(newUser.UserId, createMealLogDto);
+                _logger.LogInformation("Auto-created meal logs for new user {UserId} on {Date}", newUser.UserId, today);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to auto-create meal logs for new user {UserId} on {Date}", newUser.UserId, DateOnly.FromDateTime(DateTime.UtcNow));
+            }
 
             _logger.LogInformation("User registered successfully: {Email}", request.Email);
 

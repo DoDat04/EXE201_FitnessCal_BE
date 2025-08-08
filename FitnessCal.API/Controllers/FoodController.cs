@@ -3,11 +3,13 @@ using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.FoodDTO.Response;
 using FitnessCal.BLL.DTO.CommonDTO;
 using FitnessCal.BLL.Constants;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FitnessCal.API.Controllers
 {
     [Route("api/foods")]
     [ApiController]
+    [Authorize]
     public class FoodController : ControllerBase
     {
         private readonly IFoodService _foodService;
