@@ -91,11 +91,11 @@ namespace FitnessCal.API.Controllers
         }
 
         [HttpPost("refresh")]
-        public async Task<ActionResult<ApiResponse<LoginResponseDTO>>> RefreshToken([FromBody] string refreshToken)
+        public async Task<ActionResult<ApiResponse<LoginResponseDTO>>> RefreshToken([FromBody] RefreshTokenRequestDTO request)
         {
             try
             {
-                var response = await _authService.RefreshTokenAsync(refreshToken);
+                var response = await _authService.RefreshTokenAsync(request.RefreshToken);
                 
                 return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<LoginResponseDTO>
                 {
