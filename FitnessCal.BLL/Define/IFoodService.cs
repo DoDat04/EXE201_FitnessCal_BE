@@ -4,6 +4,6 @@ namespace FitnessCal.BLL.Define
 {
     public interface IFoodService
     {
-        Task<IEnumerable<FoodResponseDTO>> GetFoodsAsync(string? searchTerm = null);
+        Task<SearchFoodPaginationResponseDTO> SearchFoodsAsync(string? searchTerm = null, int page = 1, int pageSize = 15);
     }
 }

@@ -21,38 +21,38 @@ namespace FitnessCal.API.Controllers
             _logger = logger;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<ApiResponse<IEnumerable<FoodResponseDTO>>>> GetFoods([FromQuery] string? search = null)
+        [HttpGet("search")]
+        public async Task<ActionResult<ApiResponse<SearchFoodPaginationResponseDTO>>> SearchFoods([FromQuery] string? search = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 15)
         {
             try
             {
-                var foods = await _foodService.GetFoodsAsync(search);
+                var searchResults = await _foodService.SearchFoodsAsync(search, page, pageSize);
                 
                 string message;
                 if (string.IsNullOrWhiteSpace(search))
                 {
-                    message = foods.Any() 
-                        ? FoodMessage.FOOD_LIST_RETRIEVED_SUCCESS 
-                        : FoodMessage.FOOD_LIST_EMPTY;
+                    message = searchResults.Foods.Any() 
+                        ? $"Hiển thị trang {page}/{searchResults.TotalPages} với {searchResults.Foods.Count()} món ăn phổ biến" 
+                        : "Không có món ăn nào trong database";
                 }
                 else
                 {
-                    message = foods.Any() 
-                        ? FoodMessage.FOOD_SEARCH_SUCCESS
-                        : FoodMessage.FOOD_SEARCH_NO_RESULTS;
+                    message = searchResults.Foods.Any() 
+                        ? $"Tìm thấy {searchResults.TotalCount} món ăn với từ khóa '{search}'. Trang {page}/{searchResults.TotalPages}"
+                        : $"Không tìm thấy món ăn nào với từ khóa '{search}'";
                 }
 
-                return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<IEnumerable<FoodResponseDTO>>
+                return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<SearchFoodPaginationResponseDTO>
                 {
                     Success = true,
                     Message = message,
-                    Data = foods
+                    Data = searchResults
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while getting foods with search: {Search}", search);
-                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<IEnumerable<FoodResponseDTO>>
+                _logger.LogError(ex, "Error occurred while searching foods");
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<SearchFoodPaginationResponseDTO>
                 {
                     Success = false,
                     Message = ResponseCodes.Messages.INTERNAL_ERROR,
