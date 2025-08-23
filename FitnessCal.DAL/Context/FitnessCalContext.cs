@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using FitnessCal.Domain;
 using Microsoft.EntityFrameworkCore;
 
-namespace FitnessCal.Domain;
+namespace FitnessCal.DAL;
 
 public partial class FitnessCalContext : DbContext
 {
@@ -81,9 +80,6 @@ public partial class FitnessCalContext : DbContext
 
             entity.ToTable("UserDailyIntake");
 
-            entity.Property(e => e.LastUpdated)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
             entity.Property(e => e.TotalCalories).HasDefaultValue(0.0);
 
             entity.HasOne(d => d.User).WithMany(p => p.UserDailyIntakes)
