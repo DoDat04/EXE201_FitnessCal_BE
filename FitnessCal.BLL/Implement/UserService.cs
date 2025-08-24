@@ -1,5 +1,6 @@
 ﻿using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.UserDTO.Response;
+using FitnessCal.BLL.DTO.CommonDTO;
 using FitnessCal.BLL.Constants;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
@@ -115,6 +116,55 @@ namespace FitnessCal.BLL.Implement
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while soft deleting user with ID {UserId}", userId);
+                throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
+            }
+        }
+
+        public async Task<UserStatisticsDTO> GetUserStatisticsAsync()
+        {
+            try
+            {
+                var allUsers = await _unitOfWork.Users.GetAllAsync();
+                
+                var currentDate = DateTime.UtcNow;
+                var currentMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
+                var lastMonth = currentMonth.AddMonths(-1);
+
+                var totalUsers = allUsers.Count(u => u.IsActive);
+
+                var newUsersThisMonth = allUsers.Count(u => 
+                    u.CreatedAt.HasValue && 
+                    u.CreatedAt.Value >= currentMonth && 
+                    u.CreatedAt.Value < currentMonth.AddMonths(1) &&
+                    u.IsActive);
+
+                var newUsersLastMonth = allUsers.Count(u => 
+                    u.CreatedAt.HasValue && 
+                    u.CreatedAt.Value >= lastMonth && 
+                    u.CreatedAt.Value < currentMonth &&
+                    u.IsActive);
+
+                var growthFromLastMonth = newUsersThisMonth - newUsersLastMonth;
+                var growthPercentage = newUsersLastMonth > 0 ? 
+                    ((double)growthFromLastMonth / newUsersLastMonth) * 100 : 0;
+
+                var statistics = new UserStatisticsDTO
+                {
+                    TotalUsers = totalUsers,
+                    NewUsersThisMonth = newUsersThisMonth,
+                    NewUsersLastMonth = newUsersLastMonth,
+                    GrowthFromLastMonth = growthFromLastMonth,
+                    GrowthPercentage = Math.Round(growthPercentage, 1)
+                };
+
+                _logger.LogInformation("User statistics retrieved successfully. Total: {Total}, This month: {ThisMonth}, Last month: {LastMonth}", 
+                    totalUsers, newUsersThisMonth, newUsersLastMonth);
+
+                return statistics;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving user statistics");
                 throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
             }
         }

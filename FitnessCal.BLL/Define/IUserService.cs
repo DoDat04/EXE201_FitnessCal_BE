@@ -1,4 +1,5 @@
 ﻿using FitnessCal.BLL.DTO.UserDTO.Response;
+using FitnessCal.BLL.DTO.CommonDTO;
 
 namespace FitnessCal.BLL.Define
 {
@@ -7,5 +8,6 @@ namespace FitnessCal.BLL.Define
         Task<IEnumerable<UserResponseDTO>> GetAllUsersAsync();
         Task<bool> DeleteUserAsync(Guid userId);
         Task<bool> UnBanUserAsync(Guid userId);
+        Task<UserStatisticsDTO> GetUserStatisticsAsync();
     }
 }
