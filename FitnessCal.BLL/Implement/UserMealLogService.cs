@@ -42,8 +42,10 @@ namespace FitnessCal.BLL.Implement
                     throw new KeyNotFoundException(UserMessage.USER_NOT_FOUND);
                 }
 
-                var mealTypes = new[] { "Breakfast", "Lunch", "Dinner" };
+                var mealTypes = new[] { "Breakfast", "Lunch", "Dinner", "Morning Snack", "Afternoon Snack", "Dinner Snack" };
                 var mealLogIds = new List<int>();
+                var createdCount = 0;
+                var existingCount = 0;
 
                 foreach (var mealType in mealTypes)
                 {
@@ -56,9 +58,10 @@ namespace FitnessCal.BLL.Implement
                     {
                         var existingLog = existingMealLog.First();
                         mealLogIds.Add(existingLog.LogId);
+                        existingCount++;
 
-                        _logger.LogInformation("Meal log already exists for user {UserId} on {MealDate} with type {MealType}", 
-                            userId, dto.MealDate, mealType);
+                        _logger.LogInformation("Meal log already exists for user {UserId} on {MealDate} with type {MealType} (LogId: {LogId})", 
+                            userId, dto.MealDate, mealType, existingLog.LogId);
                     }
                     else
                     {
@@ -70,20 +73,40 @@ namespace FitnessCal.BLL.Implement
                         };
 
                         await _unitOfWork.UserMealLogs.AddAsync(log);
-                        mealLogIds.Add(log.LogId);
+                        createdCount++;
 
-                        _logger.LogInformation("Meal log created successfully for user {UserId} on {MealDate} with type {MealType}", 
+                        _logger.LogInformation("Meal log created for user {UserId} on {MealDate} with type {MealType}", 
                             userId, dto.MealDate, mealType);
                     }
                 }
 
-                var result = await _unitOfWork.Save();
-
-                if (result)
+                // Chỉ save nếu có meal log mới được tạo
+                if (createdCount > 0)
                 {
-                    _logger.LogInformation("Auto meal logs completed for user {UserId} on {MealDate}", 
-                        userId, dto.MealDate);
+                    var result = await _unitOfWork.Save();
+                    if (!result)
+                    {
+                        _logger.LogError("Failed to save meal logs to database for user {UserId} on {MealDate}", userId, dto.MealDate);
+                        throw new Exception("Failed to save meal logs to database");
+                    }
+
+                    // Lấy lại LogId của các meal log vừa tạo
+                    var newlyCreatedLogs = await _unitOfWork.UserMealLogs.GetAllAsync(log => 
+                        log.UserId == userId && 
+                        log.MealDate == dto.MealDate && 
+                        !mealLogIds.Contains(log.LogId));
+
+                    foreach (var newLog in newlyCreatedLogs)
+                    {
+                        mealLogIds.Add(newLog.LogId);
+                    }
+
+                    _logger.LogInformation("Successfully saved {CreatedCount} new meal logs to database for user {UserId} on {MealDate}", 
+                        createdCount, userId, dto.MealDate);
                 }
+
+                _logger.LogInformation("Auto meal logs completed for user {UserId} on {MealDate}. Created: {CreatedCount}, Existing: {ExistingCount}, Total: {TotalCount}", 
+                    userId, dto.MealDate, createdCount, existingCount, mealLogIds.Count);
 
                 return new CreateUserMealLogResponseDTO
                 {
@@ -224,10 +247,13 @@ namespace FitnessCal.BLL.Implement
         {
             return mealType switch
             {
-                "Breakfast" => 822,
-                "Lunch" => 1096,
-                "Dinner" => 822,
-                _ => 822
+                "Breakfast" => 600,
+                "Lunch" => 800,
+                "Dinner" => 600,
+                "Morning Snack" => 300,
+                "Afternoon Snack" => 300,
+                "Dinner Snack" => 200,
+                _ => 600
             };
         }
     }

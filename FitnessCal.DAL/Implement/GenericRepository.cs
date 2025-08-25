@@ -51,5 +51,10 @@ namespace FitnessCal.DAL.Implement
             _dbSet.Remove(entity);
             return Task.CompletedTask;
         }
+
+        public async Task<int> SaveChangesAsync()
+        {
+            return await _context.SaveChangesAsync();
+        }
     }
 }
