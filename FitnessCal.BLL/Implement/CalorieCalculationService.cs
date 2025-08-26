@@ -26,7 +26,7 @@ public class CalorieCalculationService : ICalorieCalculationService
 
             var bmr = CalculateBMR(request.Gender, request.DateOfBirth, request.HeightCm, request.WeightKg);
             var tdee = CalculateTDEE(bmr, request.ActivityLevel);
-            var dailyCalories = AdjustCaloriesForGoal(tdee, request.Goal);
+            var dailyCalories = AdjustCaloriesForGoal(tdee, request.Goal, request.IntensityLevel);
 
             var explanation = GenerateExplanation(request.Gender, request.Goal, request.ActivityLevel, request.IntensityLevel);
             var recommendation = GenerateRecommendation(request.Goal, dailyCalories, request.IntensityLevel);
@@ -100,6 +100,106 @@ public class CalorieCalculationService : ICalorieCalculationService
         }
     }
 
+    public async Task<UpdateUserHealthResponseDTO> UpdateUserHealthAsync(Guid userId, UpdateUserHealthRequestDTO request)
+    {
+        var userHealth = await _unitOfWork.UserHealths.GetByIdAsync(userId);
+        if (userHealth == null)
+        {
+            throw new KeyNotFoundException("Không tìm thấy thông tin sức khỏe của người dùng");
+        }
+
+        var normalizedWeight = request.WeightKg.HasValue && request.WeightKg.Value > 0 ? request.WeightKg : null;
+        var normalizedTarget = request.TargetWeightKg.HasValue && request.TargetWeightKg.Value > 0 ? request.TargetWeightKg : null;
+
+        var newWeight = normalizedWeight ?? userHealth.WeightKg;
+        var newTarget = normalizedTarget ?? userHealth.TargetWeightKg;
+
+        userHealth.WeightKg = newWeight;
+        userHealth.TargetWeightKg = newTarget;
+
+        string message;
+        string newGoal = userHealth.Goal ?? "maintain";
+
+        if (newTarget.HasValue && newWeight.HasValue)
+        {
+            if (newTarget.Value == newWeight.Value)
+            {
+                newGoal = "stay healthy";
+                userHealth.Goal = newGoal;
+                userHealth.IntensityLevel = null;
+                userHealth.EstimatedGoalDate = null;
+                userHealth.GoalNote = "mục tiêu của bạn bây giờ sẽ là stay healthy";
+                message = "Bạn đã đạt mục tiêu! Bạn muốn đặt mục tiêu mới hay stay healthy?";
+            }
+            else if (newTarget.Value < newWeight.Value)
+            {
+                newGoal = "lose weight";
+                userHealth.Goal = newGoal;
+                if (string.IsNullOrWhiteSpace(userHealth.IntensityLevel))
+                {
+                    userHealth.IntensityLevel = "ổn định";
+                }
+                message = "Mục tiêu được cập nhật thành giảm cân và đã tính lại calorie hàng ngày.";
+            }
+            else
+            {
+                newGoal = "gain weight";
+                userHealth.Goal = newGoal;
+                if (string.IsNullOrWhiteSpace(userHealth.IntensityLevel))
+                {
+                    userHealth.IntensityLevel = "ổn định";
+                }
+                message = "Mục tiêu được cập nhật thành tăng cân và đã tính lại calorie hàng ngày.";
+            }
+        }
+        else
+        {
+            message = "Cập nhật cân nặng thành công và đã tính lại calorie hàng ngày.";
+        }
+
+        if (!userHealth.DateOfBirth.HasValue || !userHealth.HeightCm.HasValue || !newWeight.HasValue)
+        {
+            await _unitOfWork.Save();
+            return new UpdateUserHealthResponseDTO
+            {
+                Message = message,
+                DailyCalories = userHealth.DailyCalories,
+                Goal = userHealth.Goal ?? newGoal
+            };
+        }
+
+        var bmr = CalculateBMR(userHealth.Gender ?? "Male",
+                                userHealth.DateOfBirth.Value.ToDateTime(TimeOnly.MinValue),
+                                userHealth.HeightCm.Value,
+                                newWeight.Value);
+
+        var tdee = CalculateTDEE(bmr, userHealth.ActivityLevel ?? "Sedentary");
+        var dailyCalories = AdjustCaloriesForGoal(tdee, userHealth.Goal ?? newGoal, userHealth.IntensityLevel);
+
+        userHealth.DailyCalories = Math.Round(dailyCalories, 0);
+
+        userHealth.EstimatedGoalDate = (newTarget.HasValue && (userHealth.Goal ?? newGoal).ToLower() != "stay healthy")
+            ? (CalculateEstimatedGoalDate(newWeight.Value, newTarget, userHealth.Goal ?? newGoal, userHealth.IntensityLevel) is DateTime d
+                ? DateOnly.FromDateTime(d)
+                : null)
+            : null;
+
+        if ((userHealth.Goal ?? newGoal).ToLower() != "stay healthy")
+        {
+            var estDateTime = userHealth.EstimatedGoalDate?.ToDateTime(TimeOnly.MinValue);
+            userHealth.GoalNote = GenerateGoalNote(userHealth.Goal ?? newGoal, userHealth.IntensityLevel, estDateTime);
+        }
+
+        await _unitOfWork.Save();
+
+        return new UpdateUserHealthResponseDTO
+        {
+            Message = message,
+            DailyCalories = userHealth.DailyCalories,
+            Goal = userHealth.Goal ?? newGoal
+        };
+    }
+
     public double CalculateBMR(string gender, DateTime dateOfBirth, decimal height, decimal weight)
     {
         var age = DateTime.Now.Year - dateOfBirth.Year;
@@ -111,11 +211,11 @@ public class CalorieCalculationService : ICalorieCalculationService
         double bmr;
         if (gender.ToLower() == "male" || gender.ToLower() == "nam")
         {
-            bmr = 88.362 + (13.397 * weightKg) + (4.799 * heightCm) - (5.677 * age);
+            bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5;
         }
         else
         {
-            bmr = 447.593 + (9.247 * weightKg) + (3.098 * heightCm) - (4.330 * age);
+            bmr = (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161;
         }
 
         return bmr;
@@ -127,22 +227,25 @@ public class CalorieCalculationService : ICalorieCalculationService
         {
             "sedentary" or "ít vận động" => bmr * 1.2,
             "lightly active" or "vận động nhẹ" => bmr * 1.375,
-            "moderately active" or "vận động vừa" => bmr * 1.55,
-            "very active" or "vận động nhiều" => bmr * 1.725,
-            "extra active" or "vận động rất nhiều" => bmr * 1.9,
+            "moderately active" or "vận động vừa" => bmr * 1.5,
+            "very active" or "vận động nhiều" => bmr * 1.7,
+            "extra active" or "vận động rất nhiều" => bmr * 1.85,
             _ => bmr * 1.2 
         };
     }
 
-    public double AdjustCaloriesForGoal(double tdee, string goal)
+    public double AdjustCaloriesForGoal(double tdee, string goal, string? intensityLevel)
     {
+        var weeklyRate = GetWeeklyRate(goal, intensityLevel);
+        var dailyDelta = (7700.0 * weeklyRate) / 7.0;
+
         return goal.ToLower() switch
         {
-            "lose weight" or "giảm cân" => tdee - 500,
-            "gain weight" or "tăng cân" => tdee + 500,
+            "lose weight" or "giảm cân" => tdee - dailyDelta,
+            "gain weight" or "tăng cân" => tdee + dailyDelta,
             "maintain" or "duy trì" => tdee,
-            "stay healthy" => tdee, 
-            _ => tdee 
+            "stay healthy" => tdee,
+            _ => tdee
         };
     }
 

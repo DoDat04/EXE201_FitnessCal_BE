@@ -77,6 +77,36 @@ public class CalorieCalculationController : ControllerBase
         }
     }
 
+    [HttpPut("update-health")]
+    public async Task<IActionResult> UpdateUserHealth([FromBody] UpdateUserHealthRequestDTO request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty)
+            {
+                return Unauthorized("Không thể xác định người dùng");
+            }
+
+            var result = await _calorieCalculationService.UpdateUserHealthAsync(userId, request);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while updating user health");
+            return StatusCode(500, "Có lỗi xảy ra khi cập nhật sức khỏe");
+        }
+    }
+
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetUserDailyCalories(Guid userId)
     {
