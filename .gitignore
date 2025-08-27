@@ -453,3 +453,6 @@ appsettings.Staging.json
 
 # Connection strings (if any)
 connectionstrings.json
+
+# FitnessCal.API/.gitignore
+Config/firebase-adminsdk.json
