@@ -10,11 +10,13 @@ public class CalorieCalculationService : ICalorieCalculationService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CalorieCalculationService> _logger;
+    private readonly IUserWeightLogService _userWeightLogService;
 
-    public CalorieCalculationService(IUnitOfWork unitOfWork, ILogger<CalorieCalculationService> logger)
+    public CalorieCalculationService(IUnitOfWork unitOfWork, ILogger<CalorieCalculationService> logger, IUserWeightLogService userWeightLogService)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _userWeightLogService = userWeightLogService;
     }
 
     public async Task<CalculateCaloriesResponseDTO> CalculateDailyCaloriesAsync(CalculateCaloriesRequestDTO request, Guid userId)
@@ -124,6 +126,9 @@ public class CalorieCalculationService : ICalorieCalculationService
             throw new ArgumentException("Cân nặng mục tiêu phải lớn hơn 0");
         }
 
+        // Lưu lại cân nặng cũ để so sánh
+        var previousWeight = userHealth.WeightKg;
+
         var normalizedWeight = request.WeightKg.HasValue && request.WeightKg.Value > 0 ? request.WeightKg : null;
         var normalizedTarget = request.TargetWeightKg.HasValue && request.TargetWeightKg.Value > 0 ? request.TargetWeightKg : null;
 
@@ -176,6 +181,17 @@ public class CalorieCalculationService : ICalorieCalculationService
         if (!userHealth.DateOfBirth.HasValue || !userHealth.HeightCm.HasValue || !newWeight.HasValue)
         {
             await _unitOfWork.Save();
+
+            // Thêm log cân nặng nếu thay đổi và có input cân nặng
+            if (request.WeightKg.HasValue && previousWeight != request.WeightKg)
+            {
+                await _userWeightLogService.AddWeightLogAsync(
+                    userId,
+                    request.WeightKg.Value,
+                    DateOnly.FromDateTime(DateTime.Today)
+                );
+            }
+
             return new UpdateUserHealthResponseDTO
             {
                 Message = message,
@@ -207,6 +223,16 @@ public class CalorieCalculationService : ICalorieCalculationService
         }
 
         await _unitOfWork.Save();
+
+        // Thêm log cân nặng nếu thay đổi và có input cân nặng
+        if (request.WeightKg.HasValue && previousWeight != request.WeightKg)
+        {
+            await _userWeightLogService.AddWeightLogAsync(
+                userId,
+                request.WeightKg.Value,
+                DateOnly.FromDateTime(DateTime.Today)
+            );
+        }
 
         return new UpdateUserHealthResponseDTO
         {
@@ -425,6 +451,8 @@ public class CalorieCalculationService : ICalorieCalculationService
             
             if (userHealth != null)
             {
+                var weightChanged = userHealth.WeightKg != request.WeightKg;
+                
                 userHealth.Gender = request.Gender;
                 userHealth.DateOfBirth = DateOnly.FromDateTime(request.DateOfBirth);
                 userHealth.HeightCm = request.HeightCm;
@@ -441,6 +469,18 @@ public class CalorieCalculationService : ICalorieCalculationService
                 userHealth.GoalNote = result.GoalNote;
                 
                 await _unitOfWork.Save();
+                
+                if (weightChanged)
+                {
+                    await _userWeightLogService.AddWeightLogAsync(
+                        userId, 
+                        request.WeightKg, 
+                        DateOnly.FromDateTime(DateTime.Today)
+                    );
+                    
+                    _logger.LogInformation("Added weight log for user {UserId}: {Weight}kg", 
+                        userId, request.WeightKg);
+                }
                 
                 _logger.LogInformation("Updated UserHealth for user {UserId} with daily calories: {Calories}", 
                     userId, result.DailyCalories);
@@ -470,6 +510,16 @@ public class CalorieCalculationService : ICalorieCalculationService
                 
                 await _unitOfWork.UserHealths.AddAsync(newUserHealth);
                 await _unitOfWork.Save();
+                
+                // Thêm weight log cho user mới
+                await _userWeightLogService.AddWeightLogAsync(
+                    userId, 
+                    request.WeightKg, 
+                    DateOnly.FromDateTime(DateTime.Today)
+                );
+                
+                _logger.LogInformation("Added initial weight log for new user {UserId}: {Weight}kg", 
+                    userId, request.WeightKg);
                 
                 _logger.LogInformation("Created new UserHealth for user {UserId} with daily calories: {Calories}", 
                     userId, result.DailyCalories);

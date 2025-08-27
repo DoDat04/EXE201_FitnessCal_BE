@@ -9,6 +9,7 @@ namespace FitnessCal.DAL.Define
         IPredefinedDishRepository PredefinedDishes { get; }
         IUserMealItemRepository UserMealItems { get; }
         IUserMealLogRepository UserMealLogs { get; }
+        IUserWeightLogRepository UserWeightLogs { get; }
         Task<bool> Save();
     }
 }

@@ -13,6 +13,7 @@ namespace FitnessCal.DAL.Implement
         public IPredefinedDishRepository PredefinedDishes { get; }
         public IUserMealItemRepository UserMealItems { get; }
         public IUserMealLogRepository UserMealLogs { get; }
+        public IUserWeightLogRepository UserWeightLogs { get; }
 
         public UnitOfWork(
             FitnessCalContext context,
@@ -21,7 +22,8 @@ namespace FitnessCal.DAL.Implement
             IFoodRepository foods,
             IPredefinedDishRepository predefinedDishes,
             IUserMealItemRepository userMealItems,
-            IUserMealLogRepository userMealLogs)
+            IUserMealLogRepository userMealLogs,
+            IUserWeightLogRepository userWeightLogs)
         {
             _context = context;
             Users = users;
@@ -30,6 +32,7 @@ namespace FitnessCal.DAL.Implement
             PredefinedDishes = predefinedDishes;
             UserMealItems = userMealItems;
             UserMealLogs = userMealLogs;
+            UserWeightLogs = userWeightLogs;
         }
 
         public async Task<bool> Save()

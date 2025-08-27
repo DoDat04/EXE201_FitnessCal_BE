@@ -29,6 +29,8 @@ public partial class FitnessCalContext : DbContext
 
     public virtual DbSet<UserMealLog> UserMealLogs { get; set; }
 
+    public virtual DbSet<UserWeightLog> UserWeightLogs { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Food>(entity =>
@@ -329,6 +331,33 @@ public partial class FitnessCalContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.UserMealLogs)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("usermeallog_userid_fkey");
+        });
+
+        modelBuilder.Entity<UserWeightLog>(entity =>
+        {
+            entity.ToTable("user_weight_logs");
+
+            entity.HasKey(e => e.Id).HasName("user_weight_logs_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .HasColumnName("user_id")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.WeightKg)
+                .HasColumnName("weight_kg")
+                .HasColumnType("numeric");
+
+            entity.Property(e => e.LogDate)
+                .HasColumnName("log_date")
+                .HasColumnType("date");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("user_weight_logs_user_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);
