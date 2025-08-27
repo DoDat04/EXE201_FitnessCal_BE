@@ -17,9 +17,9 @@ public partial class User
 
     public string Role { get; set; } = null!;
 
-    public bool IsActive { get; set; }
+    public short IsActive { get; set; }  
 
-    public DateTime? CreatedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
 
     public virtual ICollection<UserDailyIntake> UserDailyIntakes { get; set; } = new List<UserDailyIntake>();
 

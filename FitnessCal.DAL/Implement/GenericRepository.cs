@@ -19,7 +19,7 @@ namespace FitnessCal.DAL.Implement
             Expression<Func<T, bool>>? filter = null,
             params Expression<Func<T, object>>[] includes)
         {
-            IQueryable<T> query = _dbSet;
+            IQueryable<T> query = _dbSet.AsNoTracking();
 
             if (filter != null)
                 query = query.Where(filter);

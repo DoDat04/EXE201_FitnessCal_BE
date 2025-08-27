@@ -1,7 +1,8 @@
-﻿using FitnessCal.Domain;
+﻿using System;
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
-namespace FitnessCal.DAL;
+namespace FitnessCal.Domain;
 
 public partial class FitnessCalContext : DbContext
 {
@@ -32,135 +33,302 @@ public partial class FitnessCalContext : DbContext
     {
         modelBuilder.Entity<Food>(entity =>
         {
-            entity.HasKey(e => e.FoodId).HasName("PK__Foods__856DB3EBD50CF461");
+            entity.ToTable("foods");
 
-            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.HasKey(e => e.FoodId).HasName("foods_pkey");
+
+            entity.Property(e => e.FoodId)
+                .HasColumnName("foodid")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasColumnName("Name")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.Calories)
+                .IsRequired()
+                .HasColumnName("calories")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.Carbs)
+                .IsRequired()
+                .HasColumnName("carbs")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.Fat)
+                .IsRequired()
+                .HasColumnName("fat")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.Protein)
+                .IsRequired()
+                .HasColumnName("protein")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.FoodCategory)
+                .HasColumnName("foodcategory")
+                .HasColumnType("character varying");
         });
 
         modelBuilder.Entity<PredefinedDish>(entity =>
         {
-            entity.HasKey(e => e.DishId).HasName("PK__Predefin__18834F509BB445B4");
+            entity.ToTable("predefineddishes");
 
-            entity.Property(e => e.Name).HasMaxLength(100);
-            entity.Property(e => e.ServingUnit).HasMaxLength(50);
+            entity.HasKey(e => e.DishId).HasName("predefineddishes_pkey");
+
+            entity.Property(e => e.DishId)
+                .HasColumnName("dishid")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasColumnName("Name")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.Calories)
+                .IsRequired()
+                .HasColumnName("calories")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.Carbs)
+                .IsRequired()
+                .HasColumnName("carbs")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.Fat)
+                .IsRequired()
+                .HasColumnName("fat")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.Protein)
+                .IsRequired()
+                .HasColumnName("protein")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.ServingUnit)
+                .HasColumnName("servingunit")
+                .HasColumnType("character varying");
         });
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.UserId).HasName("PK__Users__CB9A1CFFA00B4B3E");
+            entity.ToTable("users");
 
-            entity.HasIndex(e => e.Email, "UQ__Users__AB6E6164CBF40468").IsUnique();
+            entity.HasKey(e => e.UserId).HasName("users_pkey");
+
+            entity.HasIndex(e => e.Email, "users_email_key").IsUnique();
 
             entity.Property(e => e.UserId)
                 .ValueGeneratedNever()
-                .HasColumnName("userId");
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime")
-                .HasColumnName("created_at");
-            entity.Property(e => e.Email)
-                .HasMaxLength(100)
-                .HasColumnName("email");
+                .HasColumnName("userid")
+                .HasColumnType("uuid");
+
             entity.Property(e => e.FirstName)
-                .HasMaxLength(50)
-                .HasColumnName("firstName");
-            entity.Property(e => e.IsActive).HasColumnName("isActive");
+                .HasColumnName("firstname")
+                .HasColumnType("character varying");
+
             entity.Property(e => e.LastName)
-                .HasMaxLength(50)
-                .HasColumnName("lastName");
-            entity.Property(e => e.PasswordHash).HasColumnName("passwordHash");
+                .HasColumnName("lastname")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.Email)
+                .IsRequired()
+                .HasColumnName("email")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.PasswordHash)
+                .IsRequired()
+                .HasColumnName("passwordhash")
+                .HasColumnType("text");
+
             entity.Property(e => e.Role)
-                .HasMaxLength(20)
-                .HasColumnName("role");
+                .IsRequired()
+                .HasColumnName("role")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.IsActive)
+                .IsRequired()
+                .HasColumnName("isactive")
+                .HasColumnType("smallint");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at")
+                .HasColumnType("timestamp with time zone");
         });
 
         modelBuilder.Entity<UserDailyIntake>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__UserDail__3214EC073B8B9395");
+            entity.ToTable("userdailyintake");
 
-            entity.ToTable("UserDailyIntake");
+            entity.HasKey(e => e.Id).HasName("userdailyintake_pkey");
 
-            entity.Property(e => e.TotalCalories).HasDefaultValue(0.0);
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .HasColumnName("userid")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.MealDate)
+                .IsRequired()
+                .HasColumnName("mealdate")
+                .HasColumnType("date");
+
+            entity.Property(e => e.TotalCalories)
+                .HasDefaultValue(0.0)
+                .HasColumnName("totalcalories")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.TargetCalories)
+                .IsRequired()
+                .HasColumnName("targetcalories")
+                .HasColumnType("double precision");
 
             entity.HasOne(d => d.User).WithMany(p => p.UserDailyIntakes)
                 .HasForeignKey(d => d.UserId)
-                .HasConstraintName("FK__UserDaily__UserI__6FE99F9F");
+                .HasConstraintName("userdailyintake_userid_fkey");
         });
 
         modelBuilder.Entity<UserHealth>(entity =>
         {
-            entity.HasKey(e => e.UserId).HasName("PK__UserHeal__CB9A1CFFD2662413");
+            entity.ToTable("userhealth");
 
-            entity.ToTable("UserHealth");
+            entity.HasKey(e => e.UserId).HasName("userhealth_pkey");
 
             entity.Property(e => e.UserId)
                 .ValueGeneratedNever()
-                .HasColumnName("userId");
-            entity.Property(e => e.ActivityLevel)
-                .HasMaxLength(20)
-                .HasColumnName("activity_level");
-            entity.Property(e => e.DailyCalories).HasColumnName("daily_calories");
-            entity.Property(e => e.DateOfBirth).HasColumnName("date_of_birth");
-            entity.Property(e => e.DietType)
-                .HasMaxLength(30)
-                .HasColumnName("diet_type");
-            entity.Property(e => e.EstimatedGoalDate).HasColumnName("estimated_goal_date");
+                .HasColumnName("userid")
+                .HasColumnType("uuid");
+
             entity.Property(e => e.Gender)
-                .HasMaxLength(10)
-                .HasColumnName("gender");
-            entity.Property(e => e.Goal)
-                .HasMaxLength(20)
-                .HasColumnName("goal");
-            entity.Property(e => e.GoalNote)
-                .HasMaxLength(50)
-                .HasColumnName("goal_note");
+                .HasColumnName("gender")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.DateOfBirth)
+                .HasColumnName("date_of_birth")
+                .HasColumnType("date");
+
             entity.Property(e => e.HeightCm)
-                .HasColumnType("decimal(5, 2)")
-                .HasColumnName("height_cm");
-            entity.Property(e => e.IntensityLevel)
-                .HasMaxLength(20)
-                .HasColumnName("intensity_level");
-            entity.Property(e => e.TargetWeightKg)
-                .HasColumnType("decimal(5, 2)")
-                .HasColumnName("target_weight_kg");
+                .HasColumnName("height_cm")
+                .HasColumnType("numeric");
+
             entity.Property(e => e.WeightKg)
-                .HasColumnType("decimal(5, 2)")
-                .HasColumnName("weight_kg");
+                .HasColumnName("weight_kg")
+                .HasColumnType("numeric");
+
+            entity.Property(e => e.TargetWeightKg)
+                .HasColumnName("target_weight_kg")
+                .HasColumnType("numeric");
+
+            entity.Property(e => e.ActivityLevel)
+                .HasColumnName("activity_level")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.Goal)
+                .HasColumnName("goal")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.DietType)
+                .HasColumnName("diet_type")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.IntensityLevel)
+                .HasColumnName("intensity_level")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.EstimatedGoalDate)
+                .HasColumnName("estimated_goal_date")
+                .HasColumnType("date");
+
+            entity.Property(e => e.GoalNote)
+                .HasColumnName("goal_note")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.DailyCalories)
+                .HasColumnName("daily_calories")
+                .HasColumnType("double precision");
 
             entity.HasOne(d => d.User).WithOne(p => p.UserHealth)
                 .HasForeignKey<UserHealth>(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__UserHealt__userI__4D94879B");
+                .HasConstraintName("userhealth_userid_fkey");
         });
 
         modelBuilder.Entity<UserMealItem>(entity =>
         {
-            entity.HasKey(e => e.ItemId).HasName("PK__UserMeal__727E838BCB2D3C87");
+            entity.ToTable("usermealitems");
+
+            entity.HasKey(e => e.ItemId).HasName("usermealitems_pkey");
+
+            entity.Property(e => e.ItemId)
+                .HasColumnName("itemid")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.LogId)
+                .HasColumnName("logid");
+
+            entity.Property(e => e.IsCustom)
+                .IsRequired()
+                .HasColumnName("iscustom")
+                .HasColumnType("smallint");
+
+            entity.Property(e => e.DishId)
+                .HasColumnName("dishid");
+
+            entity.Property(e => e.FoodId)
+                .HasColumnName("foodid");
+
+            entity.Property(e => e.Quantity)
+                .IsRequired()
+                .HasColumnName("quantity")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.Calories)
+                .HasColumnName("calories")
+                .HasColumnType("double precision");
 
             entity.HasOne(d => d.Dish).WithMany(p => p.UserMealItems)
                 .HasForeignKey(d => d.DishId)
-                .HasConstraintName("FK__UserMealI__DishI__66603565");
+                .HasConstraintName("usermealitems_dishid_fkey");
 
             entity.HasOne(d => d.Food).WithMany(p => p.UserMealItems)
                 .HasForeignKey(d => d.FoodId)
-                .HasConstraintName("FK__UserMealI__FoodI__6754599E");
+                .HasConstraintName("usermealitems_foodid_fkey");
 
             entity.HasOne(d => d.Log).WithMany(p => p.UserMealItems)
                 .HasForeignKey(d => d.LogId)
-                .HasConstraintName("FK__UserMealI__LogId__656C112C");
+                .HasConstraintName("usermealitems_logid_fkey");
         });
 
         modelBuilder.Entity<UserMealLog>(entity =>
         {
-            entity.HasKey(e => e.LogId).HasName("PK__UserMeal__5E548648EC0A39B8");
+            entity.ToTable("usermeallog");
 
-            entity.ToTable("UserMealLog");
+            entity.HasKey(e => e.LogId).HasName("usermeallog_pkey");
 
-            entity.Property(e => e.MealType).HasMaxLength(50);
+            entity.Property(e => e.LogId)
+                .HasColumnName("logid")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .HasColumnName("userid")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.MealDate)
+                .IsRequired()
+                .HasColumnName("mealdate")
+                .HasColumnType("date");
+
+            entity.Property(e => e.MealType)
+                .HasColumnName("mealtype")
+                .HasColumnType("character varying");
 
             entity.HasOne(d => d.User).WithMany(p => p.UserMealLogs)
                 .HasForeignKey(d => d.UserId)
-                .HasConstraintName("FK__UserMealL__UserI__628FA481");
+                .HasConstraintName("usermeallog_userid_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

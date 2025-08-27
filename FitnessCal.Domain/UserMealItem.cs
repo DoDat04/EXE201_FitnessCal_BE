@@ -1,15 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
 
 namespace FitnessCal.Domain;
 
 public partial class UserMealItem
 {
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int ItemId { get; set; }
 
     public int? LogId { get; set; }
 
-    public bool IsCustom { get; set; }
+    public short IsCustom { get; set; }
 
     public int? DishId { get; set; }
 

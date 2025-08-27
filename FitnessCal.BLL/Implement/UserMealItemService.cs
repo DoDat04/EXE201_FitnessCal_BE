@@ -35,6 +35,13 @@ namespace FitnessCal.BLL.Implement
                     throw new ArgumentException("Số lượng phải lớn hơn 0");
                 }
 
+                // Không cho phép đồng thời có cả FoodId và DishId
+                if (dto.FoodId.HasValue && dto.DishId.HasValue)
+                {
+                    _logger.LogWarning("Both FoodId and DishId provided. Only one source is allowed. FoodId: {FoodId}, DishId: {DishId}", dto.FoodId.Value, dto.DishId.Value);
+                    throw new ArgumentException("Chỉ chọn một trong hai: FoodId hoặc DishId");
+                }
+
                 var mealLog = await _unitOfWork.UserMealLogs.GetByIdAsync(dto.MealLogId);
                 if (mealLog == null)
                 {
@@ -44,7 +51,7 @@ namespace FitnessCal.BLL.Implement
 
                 string foodName = string.Empty;
                 double calories = 0;
-                bool isCustom = false;
+                short isCustom = 0;
 
                 if (dto.FoodId.HasValue)
                 {
@@ -57,7 +64,7 @@ namespace FitnessCal.BLL.Implement
 
                     foodName = food.Name;
                     calories = food.Calories * dto.Quantity;
-                    isCustom = false;
+                    isCustom = 0;
                 }
                 else if (dto.DishId.HasValue)
                 {
@@ -70,7 +77,7 @@ namespace FitnessCal.BLL.Implement
 
                     foodName = dish.Name;
                     calories = dish.Calories * dto.Quantity;
-                    isCustom = false;
+                    isCustom = 0;
                 }
                 else
                 {
@@ -82,8 +89,9 @@ namespace FitnessCal.BLL.Implement
                 {
                     LogId = dto.MealLogId,
                     IsCustom = isCustom,
-                    FoodId = dto.FoodId,
-                    DishId = dto.DishId,
+                    // Chỉ set một FK để tránh vi phạm ràng buộc
+                    FoodId = dto.FoodId.HasValue ? dto.FoodId : null,
+                    DishId = dto.DishId.HasValue ? dto.DishId : null,
                     Quantity = dto.Quantity,
                     Calories = calories
                 };

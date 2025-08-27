@@ -36,7 +36,7 @@ namespace FitnessCal.BLL.Implement
                     throw new KeyNotFoundException(UserMessage.USER_NOT_FOUND);
                 }
 
-                user.IsActive = false;
+                user.IsActive = 0;
                 await _unitOfWork.Users.UpdateAsync(user);
 
                 var result = await _unitOfWork.Save();
@@ -97,7 +97,7 @@ namespace FitnessCal.BLL.Implement
                     throw new KeyNotFoundException(UserMessage.USER_NOT_FOUND);
                 }
 
-                user.IsActive = true;
+                user.IsActive = 1;
                 await _unitOfWork.Users.UpdateAsync(user);
 
                 var result = await _unitOfWork.Save();
@@ -130,19 +130,17 @@ namespace FitnessCal.BLL.Implement
                 var currentMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
                 var lastMonth = currentMonth.AddMonths(-1);
 
-                var totalUsers = allUsers.Count(u => u.IsActive);
+                var totalUsers = allUsers.Count(u => u.IsActive == 1);
 
-                var newUsersThisMonth = allUsers.Count(u => 
-                    u.CreatedAt.HasValue && 
-                    u.CreatedAt.Value >= currentMonth && 
-                    u.CreatedAt.Value < currentMonth.AddMonths(1) &&
-                    u.IsActive);
+                        var newUsersThisMonth = allUsers.Count(u => 
+            u.CreatedAt >= currentMonth && 
+            u.CreatedAt < currentMonth.AddMonths(1) &&
+            u.IsActive == 1);
 
-                var newUsersLastMonth = allUsers.Count(u => 
-                    u.CreatedAt.HasValue && 
-                    u.CreatedAt.Value >= lastMonth && 
-                    u.CreatedAt.Value < currentMonth &&
-                    u.IsActive);
+        var newUsersLastMonth = allUsers.Count(u => 
+            u.CreatedAt >= lastMonth && 
+            u.CreatedAt < currentMonth &&
+            u.IsActive == 1);
 
                 var growthFromLastMonth = newUsersThisMonth - newUsersLastMonth;
                 var growthPercentage = newUsersLastMonth > 0 ? 

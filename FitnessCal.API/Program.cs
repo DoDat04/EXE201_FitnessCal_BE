@@ -11,12 +11,18 @@ using FitnessCal.BLL.DTO.CommonDTO;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
 builder.Services.AddDbContext<FitnessCalContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+
+// CORS cho mobile/dev: cho phép mọi nguồn trong quá trình phát triển
+builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
+    p.AllowAnyOrigin()
+     .AllowAnyHeader()
+     .AllowAnyMethod()
+));
 
 builder.Services.Scan(scan => scan
     .FromAssemblies(
@@ -124,7 +130,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();

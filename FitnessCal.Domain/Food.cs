@@ -17,5 +17,7 @@ public partial class Food
 
     public double Protein { get; set; }
 
+    public string? FoodCategory { get; set; }
+
     public virtual ICollection<UserMealItem> UserMealItems { get; set; } = new List<UserMealItem>();
 }

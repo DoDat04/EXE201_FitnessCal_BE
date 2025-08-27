@@ -39,7 +39,7 @@ namespace FitnessCal.BLL.Implement
                 throw new UnauthorizedAccessException(AuthMessage.LOGIN_FAILED);
             }
 
-            if (!user.IsActive)
+            if (user.IsActive != 1)
             {
                 throw new UnauthorizedAccessException(AuthMessage.LOGIN_USER_NOT_ACTIVE);
             }
@@ -73,7 +73,7 @@ namespace FitnessCal.BLL.Implement
                 LastName = request.LastName,
                 PasswordHash = request.Password, 
                 Role = "User", 
-                IsActive = true,
+                IsActive = 1,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -144,7 +144,7 @@ namespace FitnessCal.BLL.Implement
                 throw new UnauthorizedAccessException(AuthMessage.REFRESH_USER_NOT_FOUND);
             }
 
-            if (!user.IsActive)
+            if (user.IsActive != 1)
             {
                 throw new UnauthorizedAccessException(AuthMessage.LOGIN_USER_NOT_ACTIVE);
             }

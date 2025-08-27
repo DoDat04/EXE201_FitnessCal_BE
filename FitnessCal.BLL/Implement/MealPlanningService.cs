@@ -687,7 +687,7 @@ Trả về JSON với format chính xác (quantity là bội số 100g):
                         var mealItem = new UserMealItem
                         {
                             LogId = correspondingMealLog.LogId,
-                            IsCustom = false,
+                            IsCustom = 0,
                             FoodId = food.FoodId,
                             Quantity = food.Quantity,
                             Calories = RoundToDecimal(food.CalculatedNutrition.Calories, 1)

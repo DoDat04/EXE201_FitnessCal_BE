@@ -108,6 +108,22 @@ public class CalorieCalculationService : ICalorieCalculationService
             throw new KeyNotFoundException("Không tìm thấy thông tin sức khỏe của người dùng");
         }
 
+        // Không cho phép đồng thời cập nhật cả cân nặng hiện tại và cân nặng mục tiêu trong một request
+        if (request.WeightKg.HasValue && request.TargetWeightKg.HasValue)
+        {
+            throw new ArgumentException("Chỉ được cập nhật một trong hai: cân nặng hiện tại hoặc cân nặng mục tiêu");
+        }
+
+        // Kiểm tra giá trị hợp lệ nếu được cung cấp
+        if (request.WeightKg.HasValue && request.WeightKg.Value <= 0)
+        {
+            throw new ArgumentException("Cân nặng phải lớn hơn 0");
+        }
+        if (request.TargetWeightKg.HasValue && request.TargetWeightKg.Value <= 0)
+        {
+            throw new ArgumentException("Cân nặng mục tiêu phải lớn hơn 0");
+        }
+
         var normalizedWeight = request.WeightKg.HasValue && request.WeightKg.Value > 0 ? request.WeightKg : null;
         var normalizedTarget = request.TargetWeightKg.HasValue && request.TargetWeightKg.Value > 0 ? request.TargetWeightKg : null;
 

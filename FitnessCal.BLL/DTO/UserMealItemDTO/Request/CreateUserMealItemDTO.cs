@@ -10,7 +10,7 @@ namespace FitnessCal.BLL.DTO.UserMealItemDTO.Request
     {
         public int? MealLogId { get; set; }
 
-        public bool IsCustom { get; set; }
+        public short IsCustom { get; set; }
 
         public int? DishId { get; set; }
 
