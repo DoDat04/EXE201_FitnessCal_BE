@@ -7,6 +7,8 @@ using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 using System.Security.Claims;
 using Microsoft.Extensions.Logging;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace FitnessCal.BLL.Implement
 {
@@ -34,7 +36,8 @@ namespace FitnessCal.BLL.Implement
                 throw new UnauthorizedAccessException(AuthMessage.LOGIN_USER_NOT_FOUND);
             }
 
-            if (user.PasswordHash != request.Password)
+            string hashedPassword = HashPassword(request.Password);
+            if (user.PasswordHash != hashedPassword)
             {
                 throw new UnauthorizedAccessException(AuthMessage.LOGIN_FAILED);
             }
@@ -71,7 +74,7 @@ namespace FitnessCal.BLL.Implement
                 Email = request.Email,
                 FirstName = request.FirstName,
                 LastName = request.LastName,
-                PasswordHash = request.Password, 
+                PasswordHash = HashPassword(request.Password), 
                 Role = "User", 
                 IsActive = 1,
                 CreatedAt = DateTime.UtcNow
@@ -159,6 +162,16 @@ namespace FitnessCal.BLL.Implement
                 AccessToken = newAccessToken,
                 RefreshToken = newRefreshToken
             };
+        }
+
+        private string HashPassword(string password)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                var bytes = Encoding.UTF8.GetBytes(password);
+                var hashBytes = sha256.ComputeHash(bytes);
+                return Convert.ToBase64String(hashBytes);
+            }
         }
     }
 }
