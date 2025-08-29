@@ -26,4 +26,6 @@ public partial class User
     public virtual UserHealth? UserHealth { get; set; }
 
     public virtual ICollection<UserMealLog> UserMealLogs { get; set; } = new List<UserMealLog>();
+
+    public virtual ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
 }

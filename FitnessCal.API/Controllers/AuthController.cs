@@ -55,6 +55,7 @@ namespace FitnessCal.API.Controllers
             }
         }
 
+        
         [HttpPost("register")]
         public async Task<ActionResult<ApiResponse<RegisterResponseDTO>>> Register([FromBody] RegisterRequestDTO request)
         {

@@ -10,6 +10,9 @@ namespace FitnessCal.DAL.Define
         IUserMealItemRepository UserMealItems { get; }
         IUserMealLogRepository UserMealLogs { get; }
         IUserWeightLogRepository UserWeightLogs { get; }
+        IPremiumPackageRepository PremiumPackages { get; }
+        IPaymentRepository Payments { get; }
+        IUserSubscriptionRepository UserSubscriptions { get; }
         Task<bool> Save();
     }
 }

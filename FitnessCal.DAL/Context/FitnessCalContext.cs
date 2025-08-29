@@ -31,6 +31,12 @@ public partial class FitnessCalContext : DbContext
 
     public virtual DbSet<UserWeightLog> UserWeightLogs { get; set; }
 
+    public virtual DbSet<PremiumPackage> PremiumPackages { get; set; }
+
+    public virtual DbSet<UserSubscription> UserSubscriptions { get; set; }
+
+    public virtual DbSet<Payment> Payments { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Food>(entity =>
@@ -358,6 +364,116 @@ public partial class FitnessCalContext : DbContext
             entity.HasOne(d => d.User).WithMany()
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("user_weight_logs_user_id_fkey");
+        });
+
+
+        modelBuilder.Entity<PremiumPackage>(entity =>
+        {
+            entity.ToTable("premium_packages");
+            entity.HasKey(e => e.PackageId).HasName("premium_packages_pkey");
+
+            entity.Property(e => e.PackageId)
+                .HasColumnName("package_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasColumnName("name")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.DurationMonths)
+                .HasColumnName("duration_months");
+
+            entity.Property(e => e.Price)
+                .HasColumnName("price")
+                .HasColumnType("numeric");
+        });
+
+        modelBuilder.Entity<UserSubscription>(entity =>
+        {
+            entity.ToTable("user_subscriptions");
+            entity.HasKey(e => e.SubscriptionId).HasName("user_subscriptions_pkey");
+
+            entity.Property(e => e.SubscriptionId)
+                .HasColumnName("subscription_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .HasColumnName("user_id")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.PackageId)
+                .HasColumnName("package_id");
+
+            entity.Property(e => e.PriceAtPurchase)
+                .HasColumnName("price_at_purchase")
+                .HasColumnType("numeric");
+
+            entity.Property(e => e.StartDate)
+                .HasColumnName("start_date")
+                .HasColumnType("date");
+
+            entity.Property(e => e.EndDate)
+                .HasColumnName("end_date")
+                .HasColumnType("date");
+
+            entity.Property(e => e.PaymentStatus)
+                .HasColumnName("payment_status")
+                .HasColumnType("character varying");
+
+            entity.HasOne(d => d.User).WithMany(p => p.UserSubscriptions)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("fk_us_user");
+
+            entity.HasOne(d => d.Package).WithMany(p => p.UserSubscriptions)
+                .HasForeignKey(d => d.PackageId)
+                .HasConstraintName("fk_us_package");
+        });
+
+        modelBuilder.Entity<Payment>(entity =>
+        {
+            entity.ToTable("payments");
+            entity.HasKey(e => e.PaymentId).HasName("payments_pkey");
+
+            entity.Property(e => e.PaymentId)
+                .HasColumnName("payment_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.SubscriptionId)
+                .HasColumnName("subscription_id");
+
+            entity.Property(e => e.UserId)
+                .HasColumnName("user_id")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.Amount)
+                .HasColumnName("amount")
+                .HasColumnType("numeric");
+
+            entity.Property(e => e.PayosOrderCode)
+                .HasColumnName("payos_order_code")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .HasColumnType("timestamp with time zone")
+                .HasDefaultValueSql("now()");
+
+            entity.Property(e => e.PaidAt)
+                .HasColumnName("paid_at")
+                .HasColumnType("timestamp with time zone");
+
+            entity.HasOne(d => d.Subscription).WithMany(p => p.Payments)
+                .HasForeignKey(d => d.SubscriptionId)
+                .HasConstraintName("payments_subscription_id_fkey");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("payments_user_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

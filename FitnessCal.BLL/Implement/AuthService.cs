@@ -173,5 +173,7 @@ namespace FitnessCal.BLL.Implement
                 return Convert.ToBase64String(hashBytes);
             }
         }
+
+        
     }
 }

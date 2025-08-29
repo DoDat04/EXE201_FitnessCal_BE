@@ -14,7 +14,9 @@ namespace FitnessCal.DAL.Implement
         public IUserMealItemRepository UserMealItems { get; }
         public IUserMealLogRepository UserMealLogs { get; }
         public IUserWeightLogRepository UserWeightLogs { get; }
-
+        public IPremiumPackageRepository PremiumPackages { get; }
+        public IPaymentRepository Payments { get; }
+        public IUserSubscriptionRepository UserSubscriptions { get; }
         public UnitOfWork(
             FitnessCalContext context,
             IUserRepository users,
@@ -23,7 +25,10 @@ namespace FitnessCal.DAL.Implement
             IPredefinedDishRepository predefinedDishes,
             IUserMealItemRepository userMealItems,
             IUserMealLogRepository userMealLogs,
-            IUserWeightLogRepository userWeightLogs)
+            IUserWeightLogRepository userWeightLogs,
+            IPremiumPackageRepository premiumPackages,
+            IPaymentRepository payments,
+            IUserSubscriptionRepository userSubscriptions)
         {
             _context = context;
             Users = users;
@@ -33,6 +38,9 @@ namespace FitnessCal.DAL.Implement
             UserMealItems = userMealItems;
             UserMealLogs = userMealLogs;
             UserWeightLogs = userWeightLogs;
+            PremiumPackages = premiumPackages;
+            Payments = payments;
+            UserSubscriptions = userSubscriptions;
         }
 
         public async Task<bool> Save()
