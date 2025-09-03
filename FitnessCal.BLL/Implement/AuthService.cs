@@ -164,6 +164,78 @@ namespace FitnessCal.BLL.Implement
             };
         }
 
+        public async Task<LoginResponseDTO> GoogleLoginAsync(GoogleLoginRequestDTO request)
+        {
+            var existingUser = await _unitOfWork.Users.GetBySupabaseUserIdAsync(request.Uid);
+            
+            User user;
+            
+            if (existingUser != null)
+            {
+                user = existingUser;
+                _logger.LogInformation("Google login for existing user: {Email}", request.Email);
+            }
+            else
+            {
+                var userByEmail = await _unitOfWork.Users.GetByEmailAsync(request.Email);
+                
+                if (userByEmail != null)
+                {
+                    throw new InvalidOperationException("Email đã được sử dụng để đăng ký thông thường. Vui lòng đăng nhập bằng email/password hoặc sử dụng email khác để đăng nhập Google.");
+                }
+                else
+                {
+                    user = new User
+                    {
+                        UserId = Guid.NewGuid(),
+                        Email = request.Email,
+                        FirstName = request.FirstName,
+                        LastName = request.LastName,
+                        PasswordHash = "", 
+                        Role = "User",
+                        IsActive = 1,
+                        CreatedAt = request.CreatedAt,
+                        SupabaseUserId = request.Uid
+                    };
+
+                    await _unitOfWork.Users.AddAsync(user);
+                    await _unitOfWork.Save();
+
+                    try
+                    {
+                        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                        var createMealLogDto = new CreateUserMealLogDTO
+                        {
+                            MealDate = today
+                        };
+
+                        await _userMealLogService.AutoCreateMealLogsAsync(user.UserId, createMealLogDto);
+                        _logger.LogInformation("Auto-created meal logs for new Google user {UserId} on {Date}", user.UserId, today);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to auto-create meal logs for new Google user {UserId} on {Date}", user.UserId, DateOnly.FromDateTime(DateTime.UtcNow));
+                    }
+
+                    _logger.LogInformation("Created new user from Google login: {Email}", request.Email);
+                }
+            }
+
+            if (user.IsActive != 1)
+            {
+                throw new UnauthorizedAccessException(AuthMessage.LOGIN_USER_NOT_ACTIVE);
+            }
+
+            var accessToken = _jwtService.GenerateAccessToken(user);
+            var refreshToken = _jwtService.GenerateRefreshToken(user);
+
+            return new LoginResponseDTO
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken
+            };
+        }
+
         private string HashPassword(string password)
         {
             using (var sha256 = SHA256.Create())

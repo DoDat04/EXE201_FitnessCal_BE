@@ -18,5 +18,11 @@ namespace FitnessCal.DAL.Implement
             return await _fitnessCalContext.Users
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
+
+        public async Task<User?> GetBySupabaseUserIdAsync(string supabaseUserId)
+        {
+            return await _fitnessCalContext.Users
+                .FirstOrDefaultAsync(u => u.SupabaseUserId == supabaseUserId);
+        }
     }
 }
