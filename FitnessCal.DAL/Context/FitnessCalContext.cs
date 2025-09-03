@@ -164,6 +164,10 @@ public partial class FitnessCalContext : DbContext
                 .HasDefaultValueSql("now()")
                 .HasColumnName("created_at")
                 .HasColumnType("timestamp with time zone");
+
+            entity.Property(e => e.SupabaseUserId)
+                .HasColumnName("supabase_user_id")
+                .HasColumnType("character varying");
         });
 
         modelBuilder.Entity<UserDailyIntake>(entity =>
