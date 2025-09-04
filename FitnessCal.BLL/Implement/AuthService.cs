@@ -17,13 +17,15 @@ namespace FitnessCal.BLL.Implement
         private readonly IUnitOfWork _unitOfWork;
         private readonly IJwtService _jwtService;
         private readonly IUserMealLogService _userMealLogService;
+        private readonly IEmailService _emailService;
         private readonly ILogger<AuthService> _logger;
 
-        public AuthService(IUnitOfWork unitOfWork, IJwtService jwtService, IUserMealLogService userMealLogService, ILogger<AuthService> logger)
+        public AuthService(IUnitOfWork unitOfWork, IJwtService jwtService, IUserMealLogService userMealLogService, IEmailService emailService, ILogger<AuthService> logger)
         {
             _unitOfWork = unitOfWork;
             _jwtService = jwtService;
             _userMealLogService = userMealLogService;
+            _emailService = emailService;
             _logger = logger;
         }
 

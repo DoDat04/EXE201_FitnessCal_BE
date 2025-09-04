@@ -1,0 +1,8 @@
+namespace FitnessCal.BLL.DTO.CommonDTO
+{
+    public class EmailSettings
+    {
+        public string ApiKey { get; set; } = string.Empty;
+        public string FromEmail { get; set; } = string.Empty;
+    }
+}
