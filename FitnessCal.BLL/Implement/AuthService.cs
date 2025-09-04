@@ -38,8 +38,9 @@ namespace FitnessCal.BLL.Implement
                 throw new UnauthorizedAccessException(AuthMessage.LOGIN_USER_NOT_FOUND);
             }
 
-            string hashedPassword = HashPassword(request.Password);
-            if (user.PasswordHash != hashedPassword)
+            bool isValidPassword = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
+
+            if (!isValidPassword)
             {
                 throw new UnauthorizedAccessException(AuthMessage.LOGIN_FAILED);
             }
@@ -237,17 +238,82 @@ namespace FitnessCal.BLL.Implement
                 RefreshToken = refreshToken
             };
         }
+        
+        public async Task<LoginResponseDTO> DiscordLoginAsync(DiscordLoginRequestDTO request)
+        {
+            var existingUser = await _unitOfWork.Users.GetBySupabaseUserIdAsync(request.Uid);
+            
+            User user;
+            
+            if (existingUser != null)
+            {
+                user = existingUser;
+                _logger.LogInformation("Discord login for existing user: {Email}", request.Email);
+            }
+            else
+            {
+                var userByEmail = await _unitOfWork.Users.GetByEmailAsync(request.Email);
+                
+                if (userByEmail != null)
+                {
+                    throw new InvalidOperationException("Email đã được sử dụng để đăng ký thông thường. Vui lòng đăng nhập bằng email/password hoặc sử dụng email khác để đăng nhập Discord.");
+                }
+                else
+                {
+                    user = new User
+                    {
+                        UserId = Guid.NewGuid(),
+                        Email = request.Email,
+                        FirstName = request.FirstName,
+                        LastName = request.LastName,
+                        PasswordHash = "", 
+                        Role = "User",
+                        IsActive = 1,
+                        CreatedAt = request.CreatedAt,
+                        SupabaseUserId = request.Uid
+                    };
+
+                    await _unitOfWork.Users.AddAsync(user);
+                    await _unitOfWork.Save();
+
+                    try
+                    {
+                        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                        var createMealLogDto = new CreateUserMealLogDTO
+                        {
+                            MealDate = today
+                        };
+
+                        await _userMealLogService.AutoCreateMealLogsAsync(user.UserId, createMealLogDto);
+                        _logger.LogInformation("Auto-created meal logs for new Discord user {UserId} on {Date}", user.UserId, today);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to auto-create meal logs for new Discord user {UserId} on {Date}", user.UserId, DateOnly.FromDateTime(DateTime.UtcNow));
+                    }
+
+                    _logger.LogInformation("Created new user from Discord login: {Email}", request.Email);
+                }
+            }
+
+            if (user.IsActive != 1)
+            {
+                throw new UnauthorizedAccessException(AuthMessage.LOGIN_USER_NOT_ACTIVE);
+            }
+
+            var accessToken = _jwtService.GenerateAccessToken(user);
+            var refreshToken = _jwtService.GenerateRefreshToken(user);
+
+            return new LoginResponseDTO
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken
+            };
+        }
 
         private string HashPassword(string password)
         {
-            using (var sha256 = SHA256.Create())
-            {
-                var bytes = Encoding.UTF8.GetBytes(password);
-                var hashBytes = sha256.ComputeHash(bytes);
-                return Convert.ToBase64String(hashBytes);
-            }
+            return BCrypt.Net.BCrypt.HashPassword(password);
         }
-
-        
     }
 }

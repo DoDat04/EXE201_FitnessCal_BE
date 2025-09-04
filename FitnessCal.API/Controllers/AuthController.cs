@@ -206,5 +206,49 @@ namespace FitnessCal.API.Controllers
                 });
             }
         }
+
+        [HttpPost("discord-login")]
+        public async Task<ActionResult<ApiResponse<LoginResponseDTO>>> DiscordLogin(
+            [FromBody] DiscordLoginRequestDTO request)
+        {
+            try
+            {
+                var response = await _authService.DiscordLoginAsync(request);
+                return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<LoginResponseDTO>
+                {
+                    Success = true,
+                    Message = "Discord login thành công",
+                    Data = response
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(ResponseCodes.StatusCodes.CONFLICT, new ApiResponse<LoginResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(ResponseCodes.StatusCodes.UNAUTHORIZED, new ApiResponse<LoginResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred during Discord login for email: {Email}", request.Email);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<LoginResponseDTO>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = null
+                });
+            }
+        }
     }
 }
