@@ -37,6 +37,8 @@ public partial class FitnessCalContext : DbContext
 
     public virtual DbSet<Payment> Payments { get; set; }
 
+    public virtual DbSet<OTP> OTPs { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Food>(entity =>
@@ -478,6 +480,50 @@ public partial class FitnessCalContext : DbContext
             entity.HasOne(d => d.User).WithMany()
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("payments_user_id_fkey");
+        });
+
+        modelBuilder.Entity<OTP>(entity =>
+        {
+            entity.ToTable("otps");
+            entity.HasKey(e => e.Id).HasName("otps_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.Email)
+                .IsRequired()
+                .HasColumnName("email")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.OTPCode)
+                .IsRequired()
+                .HasColumnName("otp")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.Purpose)
+                .IsRequired()
+                .HasColumnName("purpose")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.ExpiresAt)
+                .IsRequired()
+                .HasColumnName("expiresat")
+                .HasColumnType("timestamp with time zone");
+
+            entity.Property(e => e.IsUsed)
+                .HasColumnName("isused")
+                .HasColumnType("boolean")
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("createdat")
+                .HasColumnType("timestamp with time zone")
+                .HasDefaultValueSql("now()");
+
+            entity.Property(e => e.UsedAt)
+                .HasColumnName("usedat")
+                .HasColumnType("timestamp with time zone");
         });
 
         OnModelCreatingPartial(modelBuilder);

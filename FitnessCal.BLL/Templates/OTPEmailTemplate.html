@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mã xác thực FitnessCal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            color: #333333;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .otp-code {
+            font-size: 24px;
+            font-weight: bold;
+            color: #000000;
+            margin: 15px 0;
+            text-align: center;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border: 1px solid #cccccc;
+        }
+        .footer {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 12px;
+            color: #666666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Mã xác thực FitnessCal</h2>
+        </div>
+        
+        <p>Xin chào,</p>
+        
+        <p>Bạn đã yêu cầu mã xác thực để <strong>{PurposeText}</strong>.</p>
+        
+        <p>Mã xác thực của bạn là:</p>
+        
+        <div class="otp-code">{OTPCode}</div>
+        
+        <p>Mã này sẽ hết hạn sau: <strong>{ExpiresAt}</strong></p>
+        
+        <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>
+        
+        <div class="footer">
+            <p>Trân trọng,<br>Đội ngũ FitnessCal</p>
+            <p>Đây là email tự động, vui lòng không trả lời.</p>
+        </div>
+    </div>
+</body>
+</html>

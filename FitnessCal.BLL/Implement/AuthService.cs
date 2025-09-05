@@ -9,23 +9,56 @@ using System.Security.Claims;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace FitnessCal.BLL.Implement
 {
+    internal class RegistrationInfo
+    {
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string PasswordHash { get; set; } = string.Empty;
+    }
+
+    internal class RegistrationTempStore
+    {
+        private static readonly MemoryCache Cache = new MemoryCache(new MemoryCacheOptions());
+
+        public void Set(string email, string token, RegistrationInfo info, TimeSpan ttl)
+        {
+            Cache.Set(GetKey(email, token), info, ttl);
+        }
+
+        public RegistrationInfo? Get(string email, string token)
+        {
+            Cache.TryGetValue(GetKey(email, token), out RegistrationInfo? info);
+            return info;
+        }
+
+        public void Remove(string email, string token)
+        {
+            Cache.Remove(GetKey(email, token));
+        }
+
+        private static string GetKey(string email, string token) => $"reg:{email}:{token}";
+    }
     public class AuthService : IAuthService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IJwtService _jwtService;
         private readonly IUserMealLogService _userMealLogService;
         private readonly IEmailService _emailService;
+        private readonly IOTPService _otpService;
         private readonly ILogger<AuthService> _logger;
+        private static readonly RegistrationTempStore RegistrationTempStore = new RegistrationTempStore();
 
-        public AuthService(IUnitOfWork unitOfWork, IJwtService jwtService, IUserMealLogService userMealLogService, IEmailService emailService, ILogger<AuthService> logger)
+        public AuthService(IUnitOfWork unitOfWork, IJwtService jwtService, IUserMealLogService userMealLogService, IEmailService emailService, IOTPService otpService, ILogger<AuthService> logger)
         {
             _unitOfWork = unitOfWork;
             _jwtService = jwtService;
             _userMealLogService = userMealLogService;
             _emailService = emailService;
+            _otpService = otpService;
             _logger = logger;
         }
 
@@ -71,45 +104,27 @@ namespace FitnessCal.BLL.Implement
                 throw new InvalidOperationException(AuthMessage.REGISTER_EMAIL_EXISTS);
             }
 
-            var newUser = new User
+            var registrationToken = Guid.NewGuid().ToString("N");
+            RegistrationTempStore.Set(request.Email, registrationToken, new RegistrationInfo
             {
-                UserId = Guid.NewGuid(),
-                Email = request.Email,
                 FirstName = request.FirstName,
                 LastName = request.LastName,
-                PasswordHash = HashPassword(request.Password), 
-                Role = "User", 
-                IsActive = 1,
-                CreatedAt = DateTime.UtcNow
-            };
+                PasswordHash = HashPassword(request.Password)
+            }, TimeSpan.FromMinutes(15));
 
-            await _unitOfWork.Users.AddAsync(newUser);
-            await _unitOfWork.Save();
-
-            try
+            var otpResult = await _otpService.SendOTPAsync(request.Email, "REGISTER");
+            if (!otpResult.Success)
             {
-                var today = DateOnly.FromDateTime(DateTime.UtcNow);
-                var createMealLogDto = new CreateUserMealLogDTO
-                {
-                    MealDate = today
-                };
-
-                await _userMealLogService.AutoCreateMealLogsAsync(newUser.UserId, createMealLogDto);
-                _logger.LogInformation("Auto-created meal logs for new user {UserId} on {Date}", newUser.UserId, today);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to auto-create meal logs for new user {UserId} on {Date}", newUser.UserId, DateOnly.FromDateTime(DateTime.UtcNow));
+                throw new InvalidOperationException(otpResult.Message);
             }
 
-            _logger.LogInformation("User registered successfully: {Email}", request.Email);
+            _logger.LogInformation("OTP sent for registration: {Email}", request.Email);
 
             return new RegisterResponseDTO
             {
-                UserId = newUser.UserId,
-                Email = newUser.Email,
-                FirstName = newUser.FirstName,
-                LastName = newUser.LastName
+                Email = request.Email,
+                Message = "Vui lòng kiểm tra email và nhập mã xác thực để hoàn tất đăng ký.",
+                RegistrationToken = registrationToken
             };
         }
 
@@ -314,6 +329,102 @@ namespace FitnessCal.BLL.Implement
         private string HashPassword(string password)
         {
             return BCrypt.Net.BCrypt.HashPassword(password);
+        }
+
+        public async Task<bool> ActivateUserAsync(string email)
+        {
+            var user = await _unitOfWork.Users.GetByEmailAsync(email);
+            
+            if (user == null)
+            {
+                throw new InvalidOperationException("Không tìm thấy tài khoản với email này.");
+            }
+
+            if (user.IsActive == 1)
+            {
+                throw new InvalidOperationException("Tài khoản đã được kích hoạt.");
+            }
+
+            // Kích hoạt tài khoản
+            user.IsActive = 1;
+            await _unitOfWork.Save();
+
+            // Tạo meal logs cho user đã kích hoạt
+            try
+            {
+                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                var createMealLogDto = new CreateUserMealLogDTO
+                {
+                    MealDate = today
+                };
+
+                await _userMealLogService.AutoCreateMealLogsAsync(user.UserId, createMealLogDto);
+                _logger.LogInformation("Auto-created meal logs for activated user {UserId} on {Date}", user.UserId, today);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to auto-create meal logs for activated user {UserId} on {Date}", user.UserId, DateOnly.FromDateTime(DateTime.UtcNow));
+            }
+
+            _logger.LogInformation("User activated successfully: {Email}", email);
+            return true;
+        }
+
+        public async Task<bool> CreateUserAfterOTPVerificationAsync(string email, string otpCode, string registrationToken)
+        {
+            var otpResponse = await _otpService.VerifyOTPAsync(email, otpCode, "REGISTER");
+            if (!otpResponse.Success)
+            {
+                throw new InvalidOperationException(otpResponse.Message);
+            }
+
+            var registrationInfo = RegistrationTempStore.Get(email, registrationToken);
+            if (registrationInfo == null)
+            {
+                throw new InvalidOperationException("Thông tin đăng ký đã hết hạn hoặc không hợp lệ.");
+            }
+
+            var existingUser = await _unitOfWork.Users.GetByEmailAsync(email);
+            if (existingUser != null)
+            {
+                throw new InvalidOperationException("Tài khoản đã tồn tại.");
+            }
+
+            var newUser = new User
+            {
+                UserId = Guid.NewGuid(),
+                Email = email,
+                FirstName = registrationInfo.FirstName,
+                LastName = registrationInfo.LastName,
+                PasswordHash = registrationInfo.PasswordHash,
+                Role = "User",
+                IsActive = 1,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.Users.AddAsync(newUser);
+            await _unitOfWork.Save();
+
+            try
+            {
+                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                var createMealLogDto = new CreateUserMealLogDTO
+                {
+                    MealDate = today
+                };
+
+                await _userMealLogService.AutoCreateMealLogsAsync(newUser.UserId, createMealLogDto);
+                _logger.LogInformation("Auto-created meal logs for new user {UserId} on {Date}", newUser.UserId, today);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to auto-create meal logs for new user {UserId} on {Date}", newUser.UserId, DateOnly.FromDateTime(DateTime.UtcNow));
+            }
+
+            _logger.LogInformation("User created successfully after OTP verification: {Email}", email);
+
+            RegistrationTempStore.Remove(email, registrationToken);
+            return true;
         }
     }
 }

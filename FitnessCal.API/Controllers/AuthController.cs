@@ -12,11 +12,13 @@ namespace FitnessCal.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
+        private readonly IOTPService _otpService;
         private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IAuthService authService, ILogger<AuthController> logger)
+        public AuthController(IAuthService authService, IOTPService otpService, ILogger<AuthController> logger)
         {
             _authService = authService;
+            _otpService = otpService;
             _logger = logger;
         }
 
@@ -247,6 +249,109 @@ namespace FitnessCal.API.Controllers
                     Success = false,
                     Message = ResponseCodes.Messages.INTERNAL_ERROR,
                     Data = null
+                });
+            }
+        }
+
+        [HttpPost("send-otp")]
+        public async Task<ActionResult<ApiResponse<bool>>> SendOTP([FromBody] SendOTPRequestDTO request)
+        {
+            try
+            {
+                var response = await _otpService.SendOTPAsync(request.Email, request.Purpose);
+                
+                return StatusCode(ResponseCodes.StatusCodes.OK, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred during sending OTP for email: {Email}", request.Email);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<bool>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = false
+                });
+            }
+        }
+
+        [HttpPost("verify-otp")]
+        public async Task<ActionResult<ApiResponse<bool>>> VerifyOTP([FromBody] VerifyOTPRequestDTO request)
+        {
+            try
+            {
+                var response = await _otpService.VerifyOTPAsync(request.Email, request.OTPCode, request.Purpose);
+                
+                return StatusCode(ResponseCodes.StatusCodes.OK, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred during verifying OTP for email: {Email}", request.Email);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<bool>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = false
+                });
+            }
+        }
+
+        [HttpPost("complete-registration")]
+        public async Task<ActionResult<ApiResponse<bool>>> CompleteRegistration([FromBody] CompleteRegistrationRequestDTO request)
+        {
+            try
+            {
+                // Tạo user sau khi verify OTP thành công
+                var createUserResult = await _authService.CreateUserAfterOTPVerificationAsync(
+                    request.Email, 
+                    request.OTPCode,
+                    request.RegistrationToken
+                );
+
+                return StatusCode(ResponseCodes.StatusCodes.CREATED, new ApiResponse<bool>
+                {
+                    Success = true,
+                    Message = "Đăng ký thành công! Tài khoản của bạn đã được tạo.",
+                    Data = true
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(ResponseCodes.StatusCodes.CONFLICT, new ApiResponse<bool>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = false
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred during completing registration for email: {Email}", request.Email);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<bool>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = false
+                });
+            }
+        }
+
+        [HttpPost("resend-otp")]
+        public async Task<ActionResult<ApiResponse<bool>>> ResendOTP([FromBody] SendOTPRequestDTO request)
+        {
+            try
+            {
+                var response = await _otpService.ResendOTPAsync(request.Email, request.Purpose);
+                
+                return StatusCode(ResponseCodes.StatusCodes.OK, response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred during resending OTP for email: {Email}", request.Email);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<bool>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = false
                 });
             }
         }

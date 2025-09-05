@@ -25,4 +25,10 @@
     <Folder Include="DTO\UserMealLogDTO\Response\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Templates\OTPEmailTemplate.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

@@ -13,6 +13,7 @@ namespace FitnessCal.DAL.Define
         IPremiumPackageRepository PremiumPackages { get; }
         IPaymentRepository Payments { get; }
         IUserSubscriptionRepository UserSubscriptions { get; }
+        IOTPRepository OTPs { get; }
         Task<bool> Save();
     }
 }

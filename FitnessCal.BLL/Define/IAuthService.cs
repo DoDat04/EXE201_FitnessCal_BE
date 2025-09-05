@@ -16,5 +16,7 @@ namespace FitnessCal.BLL.Define
         Task<bool> LogoutAsync(string refreshToken);
         Task<LoginResponseDTO> GoogleLoginAsync(GoogleLoginRequestDTO request);
         Task<LoginResponseDTO> DiscordLoginAsync(DiscordLoginRequestDTO request);
+        Task<bool> ActivateUserAsync(string email);
+        Task<bool> CreateUserAfterOTPVerificationAsync(string email, string otpCode, string registrationToken);
     }
 }

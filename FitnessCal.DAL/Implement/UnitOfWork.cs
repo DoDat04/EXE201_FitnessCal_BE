@@ -17,6 +17,7 @@ namespace FitnessCal.DAL.Implement
         public IPremiumPackageRepository PremiumPackages { get; }
         public IPaymentRepository Payments { get; }
         public IUserSubscriptionRepository UserSubscriptions { get; }
+        public IOTPRepository OTPs { get; }
         public UnitOfWork(
             FitnessCalContext context,
             IUserRepository users,
@@ -28,7 +29,8 @@ namespace FitnessCal.DAL.Implement
             IUserWeightLogRepository userWeightLogs,
             IPremiumPackageRepository premiumPackages,
             IPaymentRepository payments,
-            IUserSubscriptionRepository userSubscriptions)
+            IUserSubscriptionRepository userSubscriptions,
+            IOTPRepository otps)
         {
             _context = context;
             Users = users;
@@ -41,6 +43,7 @@ namespace FitnessCal.DAL.Implement
             PremiumPackages = premiumPackages;
             Payments = payments;
             UserSubscriptions = userSubscriptions;
+            OTPs = otps;
         }
 
         public async Task<bool> Save()
