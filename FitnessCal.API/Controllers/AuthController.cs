@@ -355,5 +355,75 @@ namespace FitnessCal.API.Controllers
                 });
             }
         }
+
+        [HttpPost("forgot-password")]
+        public async Task<ActionResult<ApiResponse<bool>>> ForgotPassword([FromBody] ForgotPasswordRequestDTO request)
+        {
+            try
+            {
+                var result = await _authService.ForgotPasswordAsync(request.Email);
+                
+                return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<bool>
+                {
+                    Success = true,
+                    Message = "Mã xác thực đã được gửi đến email của bạn.",
+                    Data = true
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(ResponseCodes.StatusCodes.BAD_REQUEST, new ApiResponse<bool>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = false
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred during forgot password for email: {Email}", request.Email);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<bool>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = false
+                });
+            }
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<ActionResult<ApiResponse<bool>>> ResetPassword([FromBody] ResetPasswordRequestDTO request)
+        {
+            try
+            {
+                var result = await _authService.ResetPasswordAsync(request.Email, request.OTPCode, request.NewPassword);
+                
+                return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<bool>
+                {
+                    Success = true,
+                    Message = "Đặt lại mật khẩu thành công!",
+                    Data = true
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(ResponseCodes.StatusCodes.BAD_REQUEST, new ApiResponse<bool>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = false
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred during reset password for email: {Email}", request.Email);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<bool>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = false
+                });
+            }
+        }
     }
 }

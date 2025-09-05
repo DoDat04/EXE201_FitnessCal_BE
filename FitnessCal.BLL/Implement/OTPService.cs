@@ -28,11 +28,10 @@ namespace FitnessCal.BLL.Implement
         {
             try
             {
-                // Rate limiting: Kiểm tra số lần gửi OTP trong 1 giờ qua
                 var oneHourAgo = DateTime.UtcNow.AddHours(-1);
                 var otpCount = await _otpRepository.GetOTPCountByEmailAsync(email, purpose, oneHourAgo);
                 
-                if (otpCount >= 5) // Giới hạn 5 OTP/giờ
+                if (otpCount >= 5)
                 {
                     return new ApiResponse<bool>
                     {
@@ -42,12 +41,10 @@ namespace FitnessCal.BLL.Implement
                     };
                 }
 
-                // Invalidate OTP cũ
                 await _otpRepository.InvalidateOTPsAsync(email, purpose);
 
-                // Tạo OTP mới
                 var otpCode = GenerateOTP();
-                var expiresAt = DateTime.UtcNow.AddMinutes(10); // OTP hết hạn sau 10 phút
+                var expiresAt = DateTime.UtcNow.AddMinutes(10);
 
                 var otp = new OTP
                 {
@@ -173,7 +170,7 @@ namespace FitnessCal.BLL.Implement
         private string GenerateOTP()
         {
             var random = new Random();
-            return random.Next(100000, 999999).ToString(); // 6 số
+            return random.Next(100000, 999999).ToString();
         }
 
         private string GetOTPEmailSubject(string purpose)

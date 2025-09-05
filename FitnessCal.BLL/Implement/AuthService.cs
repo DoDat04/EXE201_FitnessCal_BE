@@ -426,5 +426,54 @@ namespace FitnessCal.BLL.Implement
             RegistrationTempStore.Remove(email, registrationToken);
             return true;
         }
+
+        public async Task<bool> ForgotPasswordAsync(string email)
+        {
+            var user = await _unitOfWork.Users.GetByEmailAsync(email);
+            if (user == null)
+            {
+                throw new InvalidOperationException("Email không tồn tại trong hệ thống.");
+            }
+
+            if (user.IsActive != 1)
+            {
+                throw new InvalidOperationException("Tài khoản chưa được kích hoạt.");
+            }
+
+            var otpResult = await _otpService.SendOTPAsync(email, "RESET_PASSWORD");
+            if (!otpResult.Success)
+            {
+                throw new InvalidOperationException(otpResult.Message);
+            }
+
+            _logger.LogInformation("OTP sent for password reset: {Email}", email);
+            return true;
+        }
+
+        public async Task<bool> ResetPasswordAsync(string email, string otpCode, string newPassword)
+        {
+            var otpResponse = await _otpService.VerifyOTPAsync(email, otpCode, "RESET_PASSWORD");
+            if (!otpResponse.Success)
+            {
+                throw new InvalidOperationException(otpResponse.Message);
+            }
+
+            var user = await _unitOfWork.Users.GetByEmailAsync(email);
+            if (user == null)
+            {
+                throw new InvalidOperationException("Email không tồn tại trong hệ thống.");
+            }
+
+            if (user.IsActive != 1)
+            {
+                throw new InvalidOperationException("Tài khoản chưa được kích hoạt.");
+            }
+
+            user.PasswordHash = HashPassword(newPassword);
+            await _unitOfWork.Save();
+
+            _logger.LogInformation("Password reset successfully for user: {Email}", email);
+            return true;
+        }
     }
 }
