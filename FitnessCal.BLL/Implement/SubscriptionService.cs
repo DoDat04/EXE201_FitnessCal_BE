@@ -68,7 +68,8 @@ namespace FitnessCal.BLL.Implement
                 EndDate = subscription.EndDate,
                 PaymentStatus = subscription.PaymentStatus,
                 IsActive = isActive,
-                DaysRemaining = daysRemaining
+                DaysRemaining = daysRemaining,
+                IsUserBanned = user != null ? user.IsActive == 0 : false
             };
         }
     }

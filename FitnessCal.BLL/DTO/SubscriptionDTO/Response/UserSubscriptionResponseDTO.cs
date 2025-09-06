@@ -15,6 +15,7 @@ namespace FitnessCal.BLL.DTO.SubscriptionDTO.Response
         public string PaymentStatus { get; set; } = null!;
         public bool IsActive { get; set; }
         public int DaysRemaining { get; set; }
+        public bool IsUserBanned { get; set; }
     }
 
     public class PackageInfoDTO
