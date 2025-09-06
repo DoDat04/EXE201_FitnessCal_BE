@@ -4,6 +4,7 @@ using FitnessCal.BLL.DTO.AuthDTO.Request;
 using FitnessCal.BLL.DTO.AuthDTO.Response;
 using FitnessCal.BLL.DTO.CommonDTO;
 using FitnessCal.BLL.Constants;
+using FitnessCal.Domain;
 
 namespace FitnessCal.API.Controllers
 {
@@ -422,6 +423,41 @@ namespace FitnessCal.API.Controllers
                     Success = false,
                     Message = ResponseCodes.Messages.INTERNAL_ERROR,
                     Data = false
+                });
+            }
+        }
+
+        [HttpGet("get-user-by-supbase-id")]
+        public async Task<ActionResult<ApiResponse<User>>> GetUserBySupabaseId([FromQuery] string supabaseId)
+        {
+            try
+            {
+                var user = await _authService.GetUserBySupabaseIdAsync(supabaseId);
+
+                return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<User>
+                {
+                    Success = true,
+                    Message = "Lấy thông tin người dùng thành công",
+                    Data = user
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return StatusCode(ResponseCodes.StatusCodes.NOT_FOUND, new ApiResponse<User>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving user with Supabase ID: {SupabaseId}", supabaseId);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<User>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = null
                 });
             }
         }

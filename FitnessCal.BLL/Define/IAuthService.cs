@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using FitnessCal.Domain;
 
 namespace FitnessCal.BLL.Define
 {
@@ -20,5 +21,6 @@ namespace FitnessCal.BLL.Define
         Task<bool> CreateUserAfterOTPVerificationAsync(string email, string otpCode, string registrationToken);
         Task<bool> ForgotPasswordAsync(string email);
         Task<bool> ResetPasswordAsync(string email, string otpCode, string newPassword);
+        Task<User?> GetUserBySupabaseIdAsync(string supabaseUserId);
     }
 }

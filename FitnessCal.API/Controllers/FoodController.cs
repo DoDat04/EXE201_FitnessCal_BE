@@ -50,14 +50,15 @@ namespace FitnessCal.API.Controllers
                     fileBytes = memoryStream.ToArray();
                 }
 
+                var remotePath = $"foods/{fileName}";
                 await _supabase.Storage
                     .From("fitnesscal-storage")
-                    .Upload(fileBytes, $"foods/{fileName}", onProgress: (_, progress) =>
+                    .Upload(fileBytes, remotePath, onProgress: (_, progress) =>
                         _logger.LogInformation($"{progress}% uploaded"));
 
                 var publicUrl = _supabase.Storage
                     .From("fitnesscal-storage")
-                    .GetPublicUrl(fileName);
+                    .GetPublicUrl(remotePath);
 
                 return Ok(new
                 {

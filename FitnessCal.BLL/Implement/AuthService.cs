@@ -475,5 +475,10 @@ namespace FitnessCal.BLL.Implement
             _logger.LogInformation("Password reset successfully for user: {Email}", email);
             return true;
         }
+
+        public async Task<User?> GetUserBySupabaseIdAsync(string supabaseUserId)
+        {
+            return _unitOfWork.Users.GetBySupabaseUserIdAsync(supabaseUserId).Result;
+        }
     }
 }
