@@ -199,7 +199,7 @@ namespace FitnessCal.BLL.Implement
                 
                 if (userByEmail != null)
                 {
-                    throw new InvalidOperationException("Email đã được sử dụng để đăng ký thông thường. Vui lòng đăng nhập bằng email/password hoặc sử dụng email khác để đăng nhập Google.");
+                    throw new InvalidOperationException("Email đã được sử dụng để đăng ký. Vui lòng đăng nhập bằng email/password hoặc sử dụng email khác để đăng nhập Google.");
                 }
                 else
                 {
