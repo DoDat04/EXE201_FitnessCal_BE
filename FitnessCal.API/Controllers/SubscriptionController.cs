@@ -44,5 +44,37 @@ namespace FitnessCal.API.Controllers
                 });
             }
         }
+        
+        [HttpGet("{userId}")]
+        public async Task<IActionResult> GetUserSubscriptionById(Guid userId)
+        {
+            try
+            {
+                var subscription = await _subscriptionService.GetUserSubscriptionByIdAsync(userId);
+                return Ok(new
+                {
+                    Success = true,
+                    Message = "Lấy thông tin subscription thành công",
+                    Data = subscription
+                });
+            }
+            catch (KeyNotFoundException knfEx)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = knfEx.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    Success = false,
+                    Message = "Lỗi server khi lấy thông tin subscription",
+                    Error = ex.Message
+                });
+            }
+        }
     }
 }

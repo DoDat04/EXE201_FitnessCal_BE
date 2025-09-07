@@ -5,5 +5,6 @@ namespace FitnessCal.BLL.Define
     public interface ISubscriptionService
     {
         Task<List<UserSubscriptionResponseDTO>> GetAllUserSubscriptionsAsync();
+        Task<UserSubscriptionResponseDTO> GetUserSubscriptionByIdAsync(Guid userId);
     }
 }
