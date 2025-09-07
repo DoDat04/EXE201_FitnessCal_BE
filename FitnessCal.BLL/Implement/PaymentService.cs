@@ -5,6 +5,7 @@ using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 
 namespace FitnessCal.BLL.Implement
 {
@@ -13,12 +14,14 @@ namespace FitnessCal.BLL.Implement
         private readonly IUnitOfWork _uow;
         private readonly IPayosService _payosService;
         private readonly PayOSSettings _payosSettings;
+        private readonly IEmailService _emailService;
 
-        public PaymentService(IUnitOfWork uow, IPayosService payosService, IOptions<PayOSSettings> payosSettings)
+        public PaymentService(IUnitOfWork uow, IPayosService payosService, IOptions<PayOSSettings> payosSettings, IEmailService emailService)
         {
             _uow = uow;
             _payosService = payosService;
             _payosSettings = payosSettings.Value;
+            _emailService = emailService;
         }
 
         public async Task<InitPaymentResponse> CreateSubscriptionAndInitPayment(Guid userId, int packageId)
@@ -59,16 +62,18 @@ namespace FitnessCal.BLL.Implement
             // Tạo orderCode trước để sử dụng trong URL
             var orderCode = int.Parse(DateTimeOffset.Now.ToString("ffffff"));
             
+            var durationText = $"{pkg.DurationMonths} tháng";
+
             var payosRequest = new CreatePayOSPaymentRequest
             {
                 OrderCode = orderCode,
                 Amount = pkg.Price,
-                Description = $"Gói {pkg.Name} - {pkg.DurationMonths} tháng",
+                Description = $"Gói Premium {durationText}",
                 ReturnUrl = _payosSettings.ReturnUrl.Replace("{orderCode}", orderCode.ToString()), 
                 CancelUrl = _payosSettings.CancelUrl.Replace("{orderCode}", orderCode.ToString()),
                 Items = new List<PayOSItem>
                 {
-                    new PayOSItem($"Gói {pkg.Name}", 1, pkg.Price)
+                    new PayOSItem($"Gói Premium {durationText}", 1, pkg.Price)
                 }
             };
 
@@ -152,6 +157,27 @@ namespace FitnessCal.BLL.Implement
                     sub.PaymentStatus = "paid";
                     await _uow.UserSubscriptions.UpdateAsync(sub);
                     await _uow.Save();
+
+                    // Gửi email xác nhận thanh toán thành công
+                    var user = await _uow.Users.GetByIdAsync(payment.UserId);
+                    var pkg = await _uow.PremiumPackages.GetByIdAsync(sub.PackageId);
+                    if (user != null && pkg != null && !string.IsNullOrWhiteSpace(user.Email))
+                    {
+                        var subject = "Xác nhận thanh toán - FitnessCal";
+                        var html = BuildPaymentSuccessEmailHtml(
+                            user: user,
+                            orderCode: payment.PayosOrderCode,
+                            amount: payment.Amount,
+                            packageName: pkg.Name,
+                            durationMonths: pkg.DurationMonths,
+                            createdAt: payment.CreatedAt,
+                            paidAt: paidAt.UtcDateTime,
+                            startDate: sub.StartDate,
+                            endDate: sub.EndDate
+                        );
+
+                        _ = _emailService.SendEmailAsync(user.Email, subject, html);
+                    }
                 }
                 
                 return true;
@@ -244,6 +270,39 @@ namespace FitnessCal.BLL.Implement
         public async Task CleanupExpiredPendingPaymentsAsync(int expirationMinutes = 30)
         {
             await _uow.Payments.CleanupExpiredPendingPaymentsAsync(expirationMinutes);
+        }
+
+        private string BuildPaymentSuccessEmailHtml(
+            User user,
+            int orderCode,
+            decimal amount,
+            string packageName,
+            int durationMonths,
+            DateTime createdAt,
+            DateTime paidAt,
+            DateTime startDate,
+            DateTime endDate)
+        {
+            var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "PaymentSuccessEmailTemplate.html");
+            var html = File.ReadAllText(templatePath);
+
+            var vi = new CultureInfo("vi-VN");
+            var amountVnd = string.Format(vi, "{0:C0}", amount);
+            var durationText = durationMonths > 0 ? $"({durationMonths} tháng)" : string.Empty;
+
+            html = html
+                .Replace("{UserName}", $"{(user.FirstName ?? string.Empty)} {(user.LastName ?? string.Empty)}".Trim())
+                .Replace("{PackageName}", packageName ?? string.Empty)
+                .Replace("{DurationText}", durationText)
+                .Replace("{Amount}", amountVnd)
+                .Replace("{OrderCode}", orderCode.ToString())
+                .Replace("{CreatedAt}", createdAt.ToLocalTime().ToString("HH:mm dd/MM/yyyy"))
+                .Replace("{PaidAt}", paidAt.ToLocalTime().ToString("HH:mm dd/MM/yyyy"))
+                .Replace("{StartDate}", startDate.ToLocalTime().ToString("dd/MM/yyyy"))
+                .Replace("{EndDate}", endDate.ToLocalTime().ToString("dd/MM/yyyy"))
+                .Replace("{Year}", DateTime.Now.Year.ToString());
+
+            return html;
         }
     }
 }
