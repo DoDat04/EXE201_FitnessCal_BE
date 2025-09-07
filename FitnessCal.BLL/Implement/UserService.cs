@@ -125,38 +125,56 @@ namespace FitnessCal.BLL.Implement
             try
             {
                 var allUsers = await _unitOfWork.Users.GetAllAsync();
+                var allSubscriptions = await _unitOfWork.UserSubscriptions.GetAllAsync(s => s.PaymentStatus == "paid");
                 
                 var currentDate = DateTime.UtcNow;
                 var currentMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
                 var lastMonth = currentMonth.AddMonths(-1);
 
+                // Total Users Statistics
                 var totalUsers = allUsers.Count(u => u.IsActive == 1);
-
-                        var newUsersThisMonth = allUsers.Count(u => 
-            u.CreatedAt >= currentMonth && 
-            u.CreatedAt < currentMonth.AddMonths(1) &&
-            u.IsActive == 1);
-
-        var newUsersLastMonth = allUsers.Count(u => 
-            u.CreatedAt >= lastMonth && 
-            u.CreatedAt < currentMonth &&
-            u.IsActive == 1);
-
+                var newUsersThisMonth = allUsers.Count(u => 
+                    u.CreatedAt >= currentMonth && 
+                    u.CreatedAt < currentMonth.AddMonths(1) &&
+                    u.IsActive == 1);
+                var newUsersLastMonth = allUsers.Count(u => 
+                    u.CreatedAt >= lastMonth && 
+                    u.CreatedAt < currentMonth &&
+                    u.IsActive == 1);
                 var growthFromLastMonth = newUsersThisMonth - newUsersLastMonth;
                 var growthPercentage = newUsersLastMonth > 0 ? 
                     ((double)growthFromLastMonth / newUsersLastMonth) * 100 : 0;
 
+                var premiumUsers = allSubscriptions.Select(s => s.UserId).Distinct().Count();
+                var newPremiumUsersThisMonth = allSubscriptions.Count(s => 
+                    s.StartDate >= currentMonth && 
+                    s.StartDate < currentMonth.AddMonths(1));
+                var newPremiumUsersLastMonth = allSubscriptions.Count(s => 
+                    s.StartDate >= lastMonth && 
+                    s.StartDate < currentMonth);
+                var premiumGrowthFromLastMonth = newPremiumUsersThisMonth - newPremiumUsersLastMonth;
+                var premiumGrowthPercentage = newPremiumUsersLastMonth > 0 ? 
+                    ((double)premiumGrowthFromLastMonth / newPremiumUsersLastMonth) * 100 : 0;
+
                 var statistics = new UserStatisticsDTO
                 {
+                    // Total Users
                     TotalUsers = totalUsers,
                     NewUsersThisMonth = newUsersThisMonth,
                     NewUsersLastMonth = newUsersLastMonth,
                     GrowthFromLastMonth = growthFromLastMonth,
-                    GrowthPercentage = Math.Round(growthPercentage, 1)
+                    GrowthPercentage = Math.Round(growthPercentage, 1),
+                    
+                    // Premium Users
+                    PremiumUsers = premiumUsers,
+                    NewPremiumUsersThisMonth = newPremiumUsersThisMonth,
+                    NewPremiumUsersLastMonth = newPremiumUsersLastMonth,
+                    PremiumGrowthFromLastMonth = premiumGrowthFromLastMonth,
+                    PremiumGrowthPercentage = Math.Round(premiumGrowthPercentage, 1)
                 };
 
-                _logger.LogInformation("User statistics retrieved successfully. Total: {Total}, This month: {ThisMonth}, Last month: {LastMonth}", 
-                    totalUsers, newUsersThisMonth, newUsersLastMonth);
+                _logger.LogInformation("User statistics retrieved successfully. Total: {Total}, Premium: {Premium}, This month: {ThisMonth}, Last month: {LastMonth}", 
+                    totalUsers, premiumUsers, newUsersThisMonth, newUsersLastMonth);
 
                 return statistics;
             }
