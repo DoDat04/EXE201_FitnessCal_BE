@@ -20,7 +20,8 @@ namespace FitnessCal.BLL.Implement
 
         public async Task<PayOSPaymentResponse> CreatePaymentLinkAsync(CreatePayOSPaymentRequest request)
         {
-            var orderCode = int.Parse(DateTimeOffset.Now.ToString("ffffff"));
+            // Sử dụng orderCode từ request hoặc tạo mới
+            var orderCode = request.OrderCode > 0 ? request.OrderCode : int.Parse(DateTimeOffset.Now.ToString("ffffff"));
            
             var payosItems = request.Items.Select(item => 
                 new ItemData(item.Name, item.Quantity, (int)item.Price)).ToList();

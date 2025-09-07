@@ -1,4 +1,4 @@
-﻿using FitnessCal.Domain;
+using FitnessCal.Domain;
 
 namespace FitnessCal.DAL.Define
 {
@@ -9,5 +9,6 @@ namespace FitnessCal.DAL.Define
         Task MarkFailedAsync(int paymentId);
         Task<string?> GetStatusByOrderCodeAsync(int orderCode);
         Task<List<Payment>> GetAllWithDetailsAsync();
+        Task CleanupExpiredPendingPaymentsAsync(int expirationMinutes = 30);
     }
 }

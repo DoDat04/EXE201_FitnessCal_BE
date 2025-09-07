@@ -1,4 +1,4 @@
-﻿using FitnessCal.BLL.DTO.AuthDTO.Request;
+using FitnessCal.BLL.DTO.AuthDTO.Request;
 using FitnessCal.BLL.DTO.AuthDTO.Response;
 using System;
 using System.Collections.Generic;

@@ -1,4 +1,4 @@
-﻿using FitnessCal.BLL.DTO.PaymentDTO;
+using FitnessCal.BLL.DTO.PaymentDTO;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -13,8 +13,7 @@ namespace FitnessCal.BLL.Define
 
         Task<PaymentStatusResponse> GetPaymentStatusByOrderCode(int orderCode);
         Task<PaymentDetailResponse?> GetPaymentDetailsByOrderCode(int orderCode);
-        Task<bool> CancelOrder(int orderCode);
-        Task<bool> ConfirmOrder(int orderCode);
         Task<List<GetAllPaymentsResponse>> GetAllPayments();
+        Task CleanupExpiredPendingPaymentsAsync(int expirationMinutes = 30);
     }
 }

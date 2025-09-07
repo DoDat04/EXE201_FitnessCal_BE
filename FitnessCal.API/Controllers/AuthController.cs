@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.AuthDTO.Request;
 using FitnessCal.BLL.DTO.AuthDTO.Response;

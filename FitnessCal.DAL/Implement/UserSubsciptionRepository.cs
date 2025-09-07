@@ -20,8 +20,13 @@ namespace FitnessCal.DAL.Implement
 
         public async Task<bool> HasPendingByUserAsync(Guid userId)
         {
+            var validTime = DateTime.UtcNow.AddMinutes(-30);
+            
             return await _dbSet.AsNoTracking()
-                .AnyAsync(s => s.UserId == userId && s.PaymentStatus == "pending");
+                .Include(s => s.Payments)
+                .AnyAsync(s => s.UserId == userId 
+                    && s.PaymentStatus == "pending"
+                    && s.Payments.Any(p => p.CreatedAt >= validTime && p.Status == "pending"));
         }
     }
 }

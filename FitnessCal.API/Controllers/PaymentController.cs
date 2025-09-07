@@ -41,13 +41,65 @@ namespace FitnessCal.API.Controllers
             }
         }
 
+
+
         [AllowAnonymous]
+        [HttpGet("webhooks/payos")]
         [HttpPost("webhooks/payos")]
-        public async Task<IActionResult> Webhook([FromBody] PayosWebhookPayload payload)
+        public async Task<IActionResult> Webhook()
         {
-            var ok = await _paymentService.HandlePayOSWebhook(payload);
-            if (!ok) return BadRequest();
-            return Ok(new { success = true });
+            try
+            {
+                var method = Request.Method;
+                Console.WriteLine($"Webhook {method} received");
+                
+                if (Request.Headers.ContainsKey("ngrok-skip-browser-warning"))
+                {
+                    Response.Headers["ngrok-skip-browser-warning"] = "true";
+                }
+                
+                if (method == "POST")
+                {
+                    using var reader = new StreamReader(Request.Body);
+                    var body = await reader.ReadToEndAsync();
+                    
+                    if (!string.IsNullOrEmpty(body))
+                    {
+                        try
+                        {
+                            var payload = System.Text.Json.JsonSerializer.Deserialize<PayosWebhookPayload>(body);
+                            if (payload != null)
+                            {
+                                var ok = await _paymentService.HandlePayOSWebhook(payload);
+                                if (!ok) return BadRequest(new { success = false, message = "Failed to process webhook" });
+                            }
+                            else
+                            {
+                                return BadRequest(new { success = false, message = "Invalid payload format" });
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            return BadRequest(new { success = false, message = $"Error: {ex.Message}" });
+                        }
+                    }
+                    else
+                    {
+                        return BadRequest(new { success = false, message = "Empty body" });
+                    }
+                }
+                
+                return Ok(new { 
+                    success = true, 
+                    message = $"Webhook processed successfully - {method}",
+                    timestamp = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Webhook {Request.Method} error: {ex.Message}");
+                return BadRequest(new { success = false, message = ex.Message });
+            }
         }
 
         [HttpGet("orders/{orderCode}/status")]
@@ -65,42 +117,6 @@ namespace FitnessCal.API.Controllers
             return Ok(new { success = true, data = res });
         }
 
-        [HttpPost("cancel-order/{orderCode}")]
-        public async Task<IActionResult> CancelOrder([FromRoute] int orderCode)
-        {
-            try
-            {
-                var result = await _paymentService.CancelOrder(orderCode);
-                if (result)
-                {
-                    return Ok(new { success = true, message = "Đã hủy đơn hàng thành công" });
-                }
-                return BadRequest(new { success = false, message = "Không tìm thấy đơn hàng" });
-            }
-            catch (Exception)
-            {
-                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi khi hủy đơn hàng" });
-            }
-        }
-
-        [HttpPost("confirm-order/{orderCode}")]
-        public async Task<IActionResult> ConfirmOrder([FromRoute] int orderCode)
-        {
-            try
-            {
-                var result = await _paymentService.ConfirmOrder(orderCode);
-                if (result)
-                {
-                    return Ok(new { success = true, message = "Đã xác nhận đơn hàng thành công" });
-                }
-                return BadRequest(new { success = false, message = "Không tìm thấy đơn hàng" });
-            }
-            catch (Exception)
-            {
-                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi khi xác nhận đơn hàng" });
-            }
-        }
-
         [HttpGet("get-all")]
         public async Task<IActionResult> GetAllPayments()
         {
@@ -112,6 +128,20 @@ namespace FitnessCal.API.Controllers
             catch (Exception)
             {
                 return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi khi lấy danh sách thanh toán" });
+            }
+        }
+
+        [HttpPost("cleanup-expired")]
+        public async Task<IActionResult> CleanupExpiredPendingPayments([FromQuery] int expirationMinutes = 30)
+        {
+            try
+            {
+                await _paymentService.CleanupExpiredPendingPaymentsAsync(expirationMinutes);
+                return Ok(new { success = true, message = $"Đã cleanup các đơn pending đã hết hạn (hơn {expirationMinutes} phút)" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Đã xảy ra lỗi khi cleanup: {ex.Message}" });
             }
         }
     }

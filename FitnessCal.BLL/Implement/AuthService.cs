@@ -1,4 +1,4 @@
-﻿using FitnessCal.BLL.Define;
+using FitnessCal.BLL.Define;
 using FitnessCal.BLL.Constants;
 using FitnessCal.BLL.DTO.AuthDTO.Request;
 using FitnessCal.BLL.DTO.AuthDTO.Response;

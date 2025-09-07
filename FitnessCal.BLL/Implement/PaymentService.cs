@@ -1,4 +1,4 @@
-﻿using FitnessCal.BLL.Define;
+using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.PaymentDTO;
 using FitnessCal.BLL.DTO.CommonDTO;
 using FitnessCal.DAL.Define;
@@ -23,6 +23,8 @@ namespace FitnessCal.BLL.Implement
 
         public async Task<InitPaymentResponse> CreateSubscriptionAndInitPayment(Guid userId, int packageId)
         {
+            await _uow.Payments.CleanupExpiredPendingPaymentsAsync();
+
             var active = await _uow.UserSubscriptions.GetActivePaidByUserAsync(userId);
             if (active != null)
                 throw new InvalidOperationException("Bạn đang có gói premium còn hạn. Vui lòng đợi gói hiện tại hết hạn trước khi mua gói mới.");
@@ -54,12 +56,16 @@ namespace FitnessCal.BLL.Implement
             await _uow.UserSubscriptions.AddAsync(sub);
             await _uow.Save();
 
+            // Tạo orderCode trước để sử dụng trong URL
+            var orderCode = int.Parse(DateTimeOffset.Now.ToString("ffffff"));
+            
             var payosRequest = new CreatePayOSPaymentRequest
             {
+                OrderCode = orderCode,
                 Amount = pkg.Price,
                 Description = $"Gói {pkg.Name} - {pkg.DurationMonths} tháng",
-                ReturnUrl = _payosSettings.ReturnUrl.Replace("{orderCode}", "{orderCode}"), 
-                CancelUrl = _payosSettings.CancelUrl,
+                ReturnUrl = _payosSettings.ReturnUrl.Replace("{orderCode}", orderCode.ToString()), 
+                CancelUrl = _payosSettings.CancelUrl.Replace("{orderCode}", orderCode.ToString()),
                 Items = new List<PayOSItem>
                 {
                     new PayOSItem($"Gói {pkg.Name}", 1, pkg.Price)
@@ -93,19 +99,51 @@ namespace FitnessCal.BLL.Implement
 
         public async Task<bool> HandlePayOSWebhook(PayosWebhookPayload payload)
         {
-            var payment = await _uow.Payments.GetByOrderCodeAsync(payload.orderCode);
-            if (payment == null) return false;
+            var actualOrderCode = payload.data?.orderCode ?? payload.orderCode;
+            
+            if (actualOrderCode == 0)
+            {
+                return true;
+            }
+            
+            var payment = await _uow.Payments.GetByOrderCodeAsync(actualOrderCode);
+            if (payment == null) 
+            {
+                return true;
+            }
 
-            var newStatus = payload.status?.ToLowerInvariant();
-            if (string.IsNullOrEmpty(newStatus)) return false;
+            string newStatus;
+            if (!string.IsNullOrEmpty(payload.status))
+            {
+                newStatus = payload.status.ToLowerInvariant();
+            }
+            else if (!string.IsNullOrEmpty(payload.code) && !string.IsNullOrEmpty(payload.desc))
+            {
+                if (payload.code == "00" && payload.desc.ToLowerInvariant().Contains("success"))
+                {
+                    newStatus = "paid";
+                }
+                else
+                {
+                    newStatus = "failed";
+                }
+            }
+            else
+            {
+                return false;
+            }
 
-            if (payment.Status == newStatus) return true;
+            if (payment.Status == newStatus) 
+            {
+                return true;
+            }
 
             if (newStatus == "paid")
             {
                 var paidAt = payload.paidAt.HasValue
                     ? DateTimeOffset.FromUnixTimeSeconds(payload.paidAt.Value)
                     : DateTimeOffset.UtcNow;
+                    
                 await _uow.Payments.MarkPaidAsync(payment.PaymentId, paidAt);
 
                 var sub = await _uow.UserSubscriptions.GetByIdAsync(payment.SubscriptionId);
@@ -115,6 +153,7 @@ namespace FitnessCal.BLL.Implement
                     await _uow.UserSubscriptions.UpdateAsync(sub);
                     await _uow.Save();
                 }
+                
                 return true;
             }
             else if (newStatus == "failed" || newStatus == "refunded")
@@ -167,45 +206,6 @@ namespace FitnessCal.BLL.Implement
             };
         }
 
-        public async Task<bool> CancelOrder(int orderCode)
-        {
-            var payment = await _uow.Payments.GetByOrderCodeAsync(orderCode);
-            if (payment == null) return false;
-
-            payment.Status = "failed";
-            await _uow.Payments.UpdateAsync(payment);
-
-            var sub = await _uow.UserSubscriptions.GetByIdAsync(payment.SubscriptionId);
-            if (sub != null)
-            {
-                sub.PaymentStatus = "failed";
-                await _uow.UserSubscriptions.UpdateAsync(sub);
-            }
-
-            await _uow.Save();
-            return true;
-        }
-
-        public async Task<bool> ConfirmOrder(int orderCode)
-        {
-            var payment = await _uow.Payments.GetByOrderCodeAsync(orderCode);
-            if (payment == null) return false;
-
-            payment.Status = "paid";
-            payment.PaidAt = DateTime.UtcNow;
-            await _uow.Payments.UpdateAsync(payment);
-
-            var sub = await _uow.UserSubscriptions.GetByIdAsync(payment.SubscriptionId);
-            if (sub != null)
-            {
-                sub.PaymentStatus = "paid";
-                await _uow.UserSubscriptions.UpdateAsync(sub);
-            }
-
-            await _uow.Save();
-            return true;
-        }
-
         public async Task<List<GetAllPaymentsResponse>> GetAllPayments()
         {
             var payments = await _uow.Payments.GetAllWithDetailsAsync();
@@ -239,6 +239,11 @@ namespace FitnessCal.BLL.Implement
             }
 
             return result;
+        }
+
+        public async Task CleanupExpiredPendingPaymentsAsync(int expirationMinutes = 30)
+        {
+            await _uow.Payments.CleanupExpiredPendingPaymentsAsync(expirationMinutes);
         }
     }
 }

@@ -4,6 +4,7 @@ namespace FitnessCal.BLL.DTO.PaymentDTO
 {
     public class CreatePayOSPaymentRequest
     {
+        public int OrderCode { get; set; }
         public decimal Amount { get; set; }
         public string Description { get; set; } = string.Empty;
         public string ReturnUrl { get; set; } = string.Empty;

@@ -1,4 +1,4 @@
-﻿using FitnessCal.DAL.Define;
+using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -49,6 +49,29 @@ namespace FitnessCal.DAL.Implement
                 .Include(p => p.User)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
+        }
+
+        public async Task CleanupExpiredPendingPaymentsAsync(int expirationMinutes = 30)
+        {
+            var expirationTime = DateTime.UtcNow.AddMinutes(-expirationMinutes);
+            
+            var expiredPayments = await _dbSet
+                .Where(p => p.Status == "pending" && p.CreatedAt < expirationTime)
+                .ToListAsync();
+
+            foreach (var payment in expiredPayments)
+            {
+                payment.Status = "failed";
+                
+                var subscription = await ((FitnessCalContext)_context).UserSubscriptions
+                    .FirstOrDefaultAsync(s => s.SubscriptionId == payment.SubscriptionId);
+                if (subscription != null)
+                {
+                    subscription.PaymentStatus = "failed";
+                }
+            }
+
+            await _context.SaveChangesAsync();
         }
     }
 }
