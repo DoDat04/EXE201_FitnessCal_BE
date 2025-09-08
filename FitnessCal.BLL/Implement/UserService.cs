@@ -1,6 +1,6 @@
 ﻿using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.UserDTO.Response;
-using FitnessCal.BLL.DTO.CommonDTO;
+using FitnessCal.BLL.DTO.DashboardDTO.Response;
 using FitnessCal.BLL.Constants;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
@@ -181,6 +181,66 @@ namespace FitnessCal.BLL.Implement
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while retrieving user statistics");
+                throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
+            }
+        }
+
+        public async Task<RevenueStatisticsDTO> GetRevenueStatisticsAsync()
+        {
+            try
+            {
+                var allSubscriptions = await _unitOfWork.UserSubscriptions.GetAllAsync(s => s.PaymentStatus == "paid");
+
+                var now = DateTime.UtcNow;
+                var startOfThisMonth = new DateTime(now.Year, now.Month, 1);
+                var startOfLastMonth = startOfThisMonth.AddMonths(-1);
+                var startOfNextMonth = startOfThisMonth.AddMonths(1);
+
+                // Doanh thu tổng (paid)
+                var totalRevenue = allSubscriptions.Sum(s => s.PriceAtPurchase);
+
+                // Doanh thu theo tháng (sử dụng PriceAtPurchase)
+                var revenueThisMonth = allSubscriptions
+                    .Where(s => s.StartDate >= startOfThisMonth && s.StartDate < startOfNextMonth)
+                    .Sum(s => s.PriceAtPurchase);
+
+                var revenueLastMonth = allSubscriptions
+                    .Where(s => s.StartDate >= startOfLastMonth && s.StartDate < startOfThisMonth)
+                    .Sum(s => s.PriceAtPurchase);
+
+                var revenueGrowthPercentage = revenueLastMonth > 0
+                    ? (double)((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100
+                    : 0;
+
+                // Người dùng đã trả tiền theo tháng (distinct theo UserId)
+                var paidUsersThisMonth = allSubscriptions
+                    .Where(s => s.StartDate >= startOfThisMonth && s.StartDate < startOfNextMonth)
+                    .Select(s => s.UserId)
+                    .Distinct()
+                    .Count();
+
+                var paidUsersLastMonth = allSubscriptions
+                    .Where(s => s.StartDate >= startOfLastMonth && s.StartDate < startOfThisMonth)
+                    .Select(s => s.UserId)
+                    .Distinct()
+                    .Count();
+
+                var paidUsersGrowth = paidUsersThisMonth - paidUsersLastMonth;
+                var paidUsersGrowthPercentage = paidUsersLastMonth > 0
+                    ? ((double)paidUsersGrowth / paidUsersLastMonth) * 100
+                    : 0;
+
+                return new RevenueStatisticsDTO
+                {
+                    TotalRevenue = totalRevenue,
+                    RevenueThisMonth = revenueThisMonth,
+                    RevenueLastMonth = revenueLastMonth,
+                    RevenueGrowthPercentage = Math.Round(revenueGrowthPercentage, 1)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving revenue statistics");
                 throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
             }
         }
