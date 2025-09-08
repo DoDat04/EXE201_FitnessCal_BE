@@ -290,19 +290,51 @@ namespace FitnessCal.BLL.Implement
             var amountVnd = string.Format(vi, "{0:C0}", amount);
             var durationText = durationMonths > 0 ? $"({durationMonths} tháng)" : string.Empty;
 
+            // Chuyển thời gian UTC sang giờ Việt Nam (UTC+7)
+            var createdAtVN = ConvertUtcToVietnamTime(createdAt);
+            var paidAtVN = ConvertUtcToVietnamTime(paidAt);
+            var startDateVN = ConvertUtcToVietnamTime(startDate);
+            var endDateVN = ConvertUtcToVietnamTime(endDate);
+
             html = html
                 .Replace("{UserName}", $"{(user.FirstName ?? string.Empty)} {(user.LastName ?? string.Empty)}".Trim())
                 .Replace("{PackageName}", packageName ?? string.Empty)
                 .Replace("{DurationText}", durationText)
                 .Replace("{Amount}", amountVnd)
                 .Replace("{OrderCode}", orderCode.ToString())
-                .Replace("{CreatedAt}", createdAt.ToLocalTime().ToString("HH:mm dd/MM/yyyy"))
-                .Replace("{PaidAt}", paidAt.ToLocalTime().ToString("HH:mm dd/MM/yyyy"))
-                .Replace("{StartDate}", startDate.ToLocalTime().ToString("dd/MM/yyyy"))
-                .Replace("{EndDate}", endDate.ToLocalTime().ToString("dd/MM/yyyy"))
+                .Replace("{CreatedAt}", createdAtVN.ToString("HH:mm dd/MM/yyyy"))
+                .Replace("{PaidAt}", paidAtVN.ToString("HH:mm dd/MM/yyyy"))
+                .Replace("{StartDate}", startDateVN.ToString("dd/MM/yyyy"))
+                .Replace("{EndDate}", endDateVN.ToString("dd/MM/yyyy"))
                 .Replace("{Year}", DateTime.Now.Year.ToString());
 
             return html;
+        }
+
+        private static DateTime ConvertUtcToVietnamTime(DateTime utcDateTime)
+        {
+            if (utcDateTime.Kind != DateTimeKind.Utc)
+            {
+                utcDateTime = DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
+            }
+
+            try
+            {
+                var tz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, tz);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                try
+                {
+                    var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok");
+                    return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, tz);
+                }
+                catch
+                {
+                    return utcDateTime.AddHours(7);
+                }
+            }
         }
     }
 }

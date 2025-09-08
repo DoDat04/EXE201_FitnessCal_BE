@@ -198,13 +198,45 @@ namespace FitnessCal.BLL.Implement
             var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "OTPEmailTemplate.html");
             var htmlTemplate = File.ReadAllText(templatePath);
 
+            // Chuyển thời gian hết hạn từ UTC sang giờ Việt Nam (UTC+7)
+            var expiresAtVietnam = ConvertUtcToVietnamTime(expiresAt);
+
             // Thay thế các placeholder
             var emailContent = htmlTemplate
                 .Replace("{PurposeText}", purposeText)
                 .Replace("{OTPCode}", otpCode)
-                .Replace("{ExpiresAt}", expiresAt.ToString("HH:mm dd/MM/yyyy"));
+                .Replace("{ExpiresAt}", expiresAtVietnam.ToString("HH:mm dd/MM/yyyy"));
 
             return emailContent;
+        }
+
+        private static DateTime ConvertUtcToVietnamTime(DateTime utcDateTime)
+        {
+            if (utcDateTime.Kind != DateTimeKind.Utc)
+            {
+                utcDateTime = DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
+            }
+
+            try
+            {
+                // Windows
+                var tz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, tz);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                try
+                {
+                    // Linux/macOS
+                    var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok");
+                    return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, tz);
+                }
+                catch
+                {
+                    // Fallback +7
+                    return utcDateTime.AddHours(7);
+                }
+            }
         }
 
         private string HashPassword(string password)

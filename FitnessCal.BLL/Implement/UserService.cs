@@ -195,6 +195,9 @@ namespace FitnessCal.BLL.Implement
                 var startOfThisMonth = new DateTime(now.Year, now.Month, 1);
                 var startOfLastMonth = startOfThisMonth.AddMonths(-1);
                 var startOfNextMonth = startOfThisMonth.AddMonths(1);
+                var startOfThisYear = new DateTime(now.Year, 1, 1);
+                var startOfLastYear = new DateTime(now.Year - 1, 1, 1);
+                var startOfThisDayLastYear = new DateTime(now.Year - 1, now.Month, now.Day);
 
                 // Doanh thu tổng (paid)
                 var totalRevenue = allSubscriptions.Sum(s => s.PriceAtPurchase);
@@ -212,22 +215,18 @@ namespace FitnessCal.BLL.Implement
                     ? (double)((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100
                     : 0;
 
-                // Người dùng đã trả tiền theo tháng (distinct theo UserId)
-                var paidUsersThisMonth = allSubscriptions
-                    .Where(s => s.StartDate >= startOfThisMonth && s.StartDate < startOfNextMonth)
-                    .Select(s => s.UserId)
-                    .Distinct()
-                    .Count();
+                // YTD YoY
+                var totalRevenueYTD = allSubscriptions
+                    .Where(s => s.StartDate >= startOfThisYear && s.StartDate <= now)
+                    .Sum(s => s.PriceAtPurchase);
 
-                var paidUsersLastMonth = allSubscriptions
-                    .Where(s => s.StartDate >= startOfLastMonth && s.StartDate < startOfThisMonth)
-                    .Select(s => s.UserId)
-                    .Distinct()
-                    .Count();
+                var totalRevenueYTDLastYear = allSubscriptions
+                    .Where(s => s.StartDate >= startOfLastYear && s.StartDate < startOfThisYear)
+                    .Where(s => s.StartDate.Month < now.Month || (s.StartDate.Month == now.Month && s.StartDate.Day <= now.Day))
+                    .Sum(s => s.PriceAtPurchase);
 
-                var paidUsersGrowth = paidUsersThisMonth - paidUsersLastMonth;
-                var paidUsersGrowthPercentage = paidUsersLastMonth > 0
-                    ? ((double)paidUsersGrowth / paidUsersLastMonth) * 100
+                var totalRevenueYTDGrowthPercentage = totalRevenueYTDLastYear > 0
+                    ? (double)((totalRevenueYTD - totalRevenueYTDLastYear) / totalRevenueYTDLastYear) * 100
                     : 0;
 
                 return new RevenueStatisticsDTO
@@ -235,7 +234,10 @@ namespace FitnessCal.BLL.Implement
                     TotalRevenue = totalRevenue,
                     RevenueThisMonth = revenueThisMonth,
                     RevenueLastMonth = revenueLastMonth,
-                    RevenueGrowthPercentage = Math.Round(revenueGrowthPercentage, 1)
+                    RevenueGrowthPercentage = Math.Round(revenueGrowthPercentage, 1),
+                    TotalRevenueYTD = totalRevenueYTD,
+                    TotalRevenueYTDLastYear = totalRevenueYTDLastYear,
+                    TotalRevenueYTDGrowthPercentage = Math.Round(totalRevenueYTDGrowthPercentage, 1)
                 };
             }
             catch (Exception ex)
