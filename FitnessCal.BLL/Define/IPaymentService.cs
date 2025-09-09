@@ -15,5 +15,6 @@ namespace FitnessCal.BLL.Define
         Task<PaymentDetailResponse?> GetPaymentDetailsByOrderCode(int orderCode);
         Task<List<GetAllPaymentsResponse>> GetAllPayments();
         Task CleanupExpiredPendingPaymentsAsync(int expirationMinutes = 30);
+        Task<bool> CancelPaymentAsync(int orderCode, string? cancellationReason = null);
     }
 }

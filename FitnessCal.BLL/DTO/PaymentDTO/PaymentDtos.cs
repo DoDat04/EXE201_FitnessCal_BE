@@ -44,6 +44,11 @@ namespace FitnessCal.BLL.DTO.PaymentDTO
         public DateTime EndDate { get; set; }
     }
 
+    public class CancelPaymentRequest
+    {
+        public string? CancellationReason { get; set; }
+    }
+
     public class PayosWebhookPayload
     {
         public int orderCode { get; set; }
@@ -51,6 +56,7 @@ namespace FitnessCal.BLL.DTO.PaymentDTO
         public long? paidAt { get; set; }
         public string? code { get; set; }
         public string? desc { get; set; }
+        public bool? success { get; set; }
         public decimal? amount { get; set; }
         public string? description { get; set; }
         public string? accountNumber { get; set; }

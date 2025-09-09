@@ -50,5 +50,24 @@ namespace FitnessCal.BLL.Implement
                 Description = request.Description
             };
         }
+
+        public async Task<bool> CancelPaymentLinkAsync(int orderCode, string? cancellationReason = null)
+        {
+            try
+            {
+                var response = await _payosClient.cancelPaymentLink(orderCode, cancellationReason ?? "Cancelled by user");
+                
+                Console.WriteLine($"PayOS Cancel Response: {response}");
+                
+                // PayOS cancelPaymentLink trả về PaymentLinkInformation, không có code/desc
+                // Nếu không có exception thì coi như thành công
+                return response != null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cancelling PayOS payment link: {ex.Message}");
+                return false;
+            }
+        }
     }
 }

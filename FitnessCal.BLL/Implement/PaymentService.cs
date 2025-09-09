@@ -104,10 +104,16 @@ namespace FitnessCal.BLL.Implement
 
         public async Task<bool> HandlePayOSWebhook(PayosWebhookPayload payload)
         {
+            // PayOS gửi orderCode trong data.orderCode, không phải payload.orderCode
             var actualOrderCode = payload.data?.orderCode ?? payload.orderCode;
+            
+            // Log webhook payload for debugging
+            Console.WriteLine($"PayOS Webhook received - OrderCode: {actualOrderCode}, Status: {payload.status}, Code: {payload.code}, Desc: {payload.desc}");
+            Console.WriteLine($"Data orderCode: {payload.data?.orderCode}, Success: {payload.success}");
             
             if (actualOrderCode == 0)
             {
+                Console.WriteLine("OrderCode is 0, skipping processing");
                 return true;
             }
             
@@ -118,28 +124,27 @@ namespace FitnessCal.BLL.Implement
             }
 
             string newStatus;
-            if (!string.IsNullOrEmpty(payload.status))
+            
+            // PayOS dùng success field và code/desc để xác định trạng thái
+            if (payload.success == true && payload.code == "00" && payload.desc?.ToLowerInvariant().Contains("success") == true)
             {
-                newStatus = payload.status.ToLowerInvariant();
+                newStatus = "paid";
             }
-            else if (!string.IsNullOrEmpty(payload.code) && !string.IsNullOrEmpty(payload.desc))
+            else if (payload.success == false || payload.code != "00" || payload.desc?.ToLowerInvariant().Contains("success") != true)
             {
-                if (payload.code == "00" && payload.desc.ToLowerInvariant().Contains("success"))
-                {
-                    newStatus = "paid";
-                }
-                else
-                {
-                    newStatus = "failed";
-                }
+                newStatus = "failed";
             }
             else
             {
+                Console.WriteLine($"Cannot determine status from payload: success={payload.success}, code={payload.code}, desc={payload.desc}");
                 return false;
             }
 
+            Console.WriteLine($"Processing status change: {payment.Status} -> {newStatus}");
+            
             if (payment.Status == newStatus) 
             {
+                Console.WriteLine($"Status unchanged, skipping processing");
                 return true;
             }
 
@@ -182,7 +187,7 @@ namespace FitnessCal.BLL.Implement
                 
                 return true;
             }
-            else if (newStatus == "failed" || newStatus == "refunded")
+            else if (newStatus == "failed" || newStatus == "refunded" || newStatus == "cancelled" || newStatus == "expired")
             {
                 await _uow.Payments.MarkFailedAsync(payment.PaymentId);
                 var sub = await _uow.UserSubscriptions.GetByIdAsync(payment.SubscriptionId);
@@ -272,6 +277,52 @@ namespace FitnessCal.BLL.Implement
             await _uow.Payments.CleanupExpiredPendingPaymentsAsync(expirationMinutes);
         }
 
+        public async Task<bool> CancelPaymentAsync(int orderCode, string? cancellationReason = null)
+        {
+            try
+            {
+                var payment = await _uow.Payments.GetByOrderCodeAsync(orderCode);
+                if (payment == null)
+                {
+                    Console.WriteLine($"Payment not found for orderCode: {orderCode}");
+                    return false;
+                }
+
+                if (payment.Status != "pending")
+                {
+                    Console.WriteLine($"Payment {orderCode} is already {payment.Status}, cannot cancel");
+                    return false;
+                }
+
+                // Hủy link thanh toán trên PayOS
+                var cancelSuccess = await _payosService.CancelPaymentLinkAsync(orderCode, cancellationReason);
+                if (!cancelSuccess)
+                {
+                    Console.WriteLine($"Failed to cancel PayOS payment link for orderCode: {orderCode}");
+                    return false;
+                }
+
+                // Cập nhật trạng thái trong database
+                await _uow.Payments.MarkFailedAsync(payment.PaymentId);
+                
+                var sub = await _uow.UserSubscriptions.GetByIdAsync(payment.SubscriptionId);
+                if (sub != null)
+                {
+                    sub.PaymentStatus = "failed";
+                    await _uow.UserSubscriptions.UpdateAsync(sub);
+                    await _uow.Save();
+                }
+
+                Console.WriteLine($"Successfully cancelled payment for orderCode: {orderCode}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cancelling payment {orderCode}: {ex.Message}");
+                return false;
+            }
+        }
+
         private string BuildPaymentSuccessEmailHtml(
             User user,
             int orderCode,
@@ -283,7 +334,30 @@ namespace FitnessCal.BLL.Implement
             DateTime startDate,
             DateTime endDate)
         {
-            var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "PaymentSuccessEmailTemplate.html");
+            // Tìm template trong thư mục project, không phải bin/Debug
+            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            var projectRoot = Path.GetFullPath(Path.Combine(baseDirectory, "..", "..", "..", ".."));
+            var templatePath = Path.Combine(projectRoot, "FitnessCal.BLL", "Templates", "PaymentSuccessEmailTemplate.html");
+            
+            // Fallback: tìm trong thư mục hiện tại
+            if (!File.Exists(templatePath))
+            {
+                templatePath = Path.Combine(baseDirectory, "Templates", "PaymentSuccessEmailTemplate.html");
+            }
+            
+            // Fallback cuối: tìm trong thư mục BLL
+            if (!File.Exists(templatePath))
+            {
+                var bllPath = Path.Combine(projectRoot, "FitnessCal.BLL", "Templates", "PaymentSuccessEmailTemplate.html");
+                if (File.Exists(bllPath))
+                {
+                    templatePath = bllPath;
+                }
+            }
+            
+            Console.WriteLine($"Looking for template at: {templatePath}");
+            Console.WriteLine($"Template exists: {File.Exists(templatePath)}");
+            
             var html = File.ReadAllText(templatePath);
 
             var vi = new CultureInfo("vi-VN");

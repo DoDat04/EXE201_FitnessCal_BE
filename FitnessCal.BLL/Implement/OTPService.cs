@@ -195,7 +195,30 @@ namespace FitnessCal.BLL.Implement
             };
 
             // Đọc template HTML
-            var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "OTPEmailTemplate.html");
+            // Tìm template trong thư mục project, không phải bin/Debug
+            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            var projectRoot = Path.GetFullPath(Path.Combine(baseDirectory, "..", "..", "..", ".."));
+            var templatePath = Path.Combine(projectRoot, "FitnessCal.BLL", "Templates", "OTPEmailTemplate.html");
+            
+            // Fallback: tìm trong thư mục hiện tại
+            if (!File.Exists(templatePath))
+            {
+                templatePath = Path.Combine(baseDirectory, "Templates", "OTPEmailTemplate.html");
+            }
+            
+            // Fallback cuối: tìm trong thư mục BLL
+            if (!File.Exists(templatePath))
+            {
+                var bllPath = Path.Combine(projectRoot, "FitnessCal.BLL", "Templates", "OTPEmailTemplate.html");
+                if (File.Exists(bllPath))
+                {
+                    templatePath = bllPath;
+                }
+            }
+            
+            Console.WriteLine($"Looking for OTP template at: {templatePath}");
+            Console.WriteLine($"OTP template exists: {File.Exists(templatePath)}");
+            
             var htmlTemplate = File.ReadAllText(templatePath);
 
             // Chuyển thời gian hết hạn từ UTC sang giờ Việt Nam (UTC+7)
