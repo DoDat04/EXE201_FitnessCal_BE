@@ -1,3 +1,4 @@
+using FitnessCal.BLL.DTO.PremiumPackageDTO.Request;
 using FitnessCal.DAL.Define;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,6 +20,22 @@ namespace FitnessCal.API.Controllers
         {
             var packages = await _uow.PremiumPackages.GetAllAsync();
             return Ok(packages);
+        }
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UpdatePremiumPackageRequest updatedPackage)
+        {
+            var existingPackage = await _uow.PremiumPackages.GetByIdAsync(id);
+            if (existingPackage == null)
+            {
+                return NotFound();
+            }
+
+            existingPackage.Price = updatedPackage.Price;
+
+            await _uow.PremiumPackages.UpdateAsync(existingPackage);
+            await _uow.Save();
+
+            return NoContent();
         }
     }
 }
