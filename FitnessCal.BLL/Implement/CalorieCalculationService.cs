@@ -26,17 +26,27 @@ public class CalorieCalculationService : ICalorieCalculationService
             _logger.LogInformation("Calculating daily calories for user {UserId} with height: {Height}, weight: {Weight}, goal: {Goal}", 
                 userId, request.HeightCm, request.WeightKg, request.Goal);
 
+            // Chuẩn hoá goal: "maintain/duy trì" => "stay healthy"
+            var normalizedGoal = NormalizeGoal(request.Goal);
+
+            // Nếu stay healthy: bỏ qua intensity và target
+            if (normalizedGoal.ToLower() == "stay healthy")
+            {
+                request.IntensityLevel = null;
+                request.TargetWeightKg = null;
+            }
+
             var bmr = CalculateBMR(request.Gender, request.DateOfBirth, request.HeightCm, request.WeightKg);
             var tdee = CalculateTDEE(bmr, request.ActivityLevel);
-            var dailyCalories = AdjustCaloriesForGoal(tdee, request.Goal, request.IntensityLevel);
+            var dailyCalories = AdjustCaloriesForGoal(tdee, normalizedGoal, request.IntensityLevel);
 
-            var explanation = GenerateExplanation(request.Gender, request.Goal, request.ActivityLevel, request.IntensityLevel);
-            var recommendation = GenerateRecommendation(request.Goal, dailyCalories, request.IntensityLevel);
-            var dietRecommendation = GenerateDietRecommendation(request.DietType, request.Goal, dailyCalories);
+            var explanation = GenerateExplanation(request.Gender, normalizedGoal, request.ActivityLevel, request.IntensityLevel);
+            var recommendation = GenerateRecommendation(normalizedGoal, dailyCalories, request.IntensityLevel);
+            var dietRecommendation = GenerateDietRecommendation(request.DietType, normalizedGoal, dailyCalories);
             
-            var estimatedGoalDate = CalculateEstimatedGoalDate(request.WeightKg, request.TargetWeightKg, request.Goal, request.IntensityLevel);
-            var estimatedWeeks = CalculateEstimatedWeeks(request.WeightKg, request.TargetWeightKg, request.Goal, request.IntensityLevel);
-            var goalNote = GenerateGoalNote(request.Goal, request.IntensityLevel, estimatedGoalDate);
+            var estimatedGoalDate = CalculateEstimatedGoalDate(request.WeightKg, request.TargetWeightKg, normalizedGoal, request.IntensityLevel);
+            var estimatedWeeks = CalculateEstimatedWeeks(request.WeightKg, request.TargetWeightKg, normalizedGoal, request.IntensityLevel);
+            var goalNote = GenerateGoalNote(normalizedGoal, request.IntensityLevel, estimatedGoalDate);
 
             var result = new CalculateCaloriesResponseDTO
             {
@@ -86,10 +96,10 @@ public class CalorieCalculationService : ICalorieCalculationService
                 DateOfBirth = userHealth.DateOfBirth.Value.ToDateTime(TimeOnly.MinValue),
                 HeightCm = userHealth.HeightCm.Value,
                 WeightKg = userHealth.WeightKg.Value,
-                TargetWeightKg = userHealth.Goal?.ToLower() == "stay healthy" ? null : userHealth.TargetWeightKg,
+                TargetWeightKg = NormalizeGoal(userHealth.Goal ?? string.Empty).ToLower() == "stay healthy" ? null : userHealth.TargetWeightKg,
                 ActivityLevel = userHealth.ActivityLevel ?? "Sedentary",
-                Goal = userHealth.Goal ?? "Maintain",
-                IntensityLevel = userHealth.Goal?.ToLower() == "stay healthy" ? null : userHealth.IntensityLevel,
+                Goal = NormalizeGoal(userHealth.Goal ?? "stay healthy"),
+                IntensityLevel = NormalizeGoal(userHealth.Goal ?? string.Empty).ToLower() == "stay healthy" ? null : userHealth.IntensityLevel,
                 DietType = userHealth.DietType
             };
 
@@ -100,6 +110,18 @@ public class CalorieCalculationService : ICalorieCalculationService
             _logger.LogError(ex, "Error occurred while calculating daily calories for user {UserId}", userId);
             throw;
         }
+    }
+
+    private string NormalizeGoal(string goal)
+    {
+        var g = (goal ?? string.Empty).Trim().ToLower();
+        return g switch
+        {
+            "stay healthy" or "giữ dáng" => "stay healthy",
+            "lose weight" or "giảm cân" => "lose weight",
+            "gain weight" or "tăng cân" => "gain weight",
+            _ => "stay healthy"
+        };
     }
 
     public async Task<UpdateUserHealthResponseDTO> UpdateUserHealthAsync(Guid userId, UpdateUserHealthRequestDTO request)
@@ -285,7 +307,6 @@ public class CalorieCalculationService : ICalorieCalculationService
         {
             "lose weight" or "giảm cân" => tdee - dailyDelta,
             "gain weight" or "tăng cân" => tdee + dailyDelta,
-            "maintain" or "duy trì" => tdee,
             "stay healthy" => tdee,
             _ => tdee
         };
@@ -298,7 +319,6 @@ public class CalorieCalculationService : ICalorieCalculationService
         {
             "lose weight" or "giảm cân" => "giảm cân",
             "gain weight" or "tăng cân" => "tăng cân",
-            "maintain" or "duy trì" => "duy trì cân nặng",
             "stay healthy" => "duy trì sức khỏe",
             _ => "duy trì cân nặng"
         };
@@ -341,8 +361,6 @@ public class CalorieCalculationService : ICalorieCalculationService
                                            "Kết hợp với tập thể dục để đạt kết quả tốt nhất.",
             "gain weight" or "tăng cân" => $"Để tăng cân {intensityText}, hãy tiêu thụ khoảng {dailyCalories:F0} calorie mỗi ngày. " +
                                            "Tập trung vào thực phẩm giàu protein và chất béo tốt.",
-            "maintain" or "duy trì" => $"Để duy trì cân nặng hiện tại, hãy tiêu thụ khoảng {dailyCalories:F0} calorie mỗi ngày. " +
-                                       "Duy trì chế độ ăn cân bằng và tập thể dục đều đặn.",
             "stay healthy" => $"Để duy trì sức khỏe tốt, hãy tiêu thụ khoảng {dailyCalories:F0} calorie mỗi ngày. " +
                               "Duy trì chế độ ăn cân bằng và tập thể dục đều đặn.",
             _ => $"Lượng calorie khuyến nghị mỗi ngày: {dailyCalories:F0}. " +
@@ -429,10 +447,7 @@ public class CalorieCalculationService : ICalorieCalculationService
             return "Mục tiêu của bạn là duy trì sức khỏe";
         }
 
-        if (goal.ToLower() == "maintain" || goal.ToLower() == "duy trì")
-        {
-            return "Mục tiêu của bạn là duy trì cân nặng hiện tại";
-        }
+        // "maintain/duy trì" đã được chuẩn hoá về "stay healthy"
 
         if (estimatedGoalDate.HasValue)
         {
