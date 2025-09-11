@@ -63,7 +63,7 @@ namespace FitnessCal.BLL.Implement
         {
             try
             {
-                var users = await _unitOfWork.Users.GetAllAsync();
+                var users = await _unitOfWork.Users.GetAllAsync(u => u.Role == "User");
 
                 var userDTOs = users.Select(user => new UserResponseDTO
                 {
