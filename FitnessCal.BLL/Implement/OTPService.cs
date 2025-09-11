@@ -195,16 +195,71 @@ namespace FitnessCal.BLL.Implement
             };
 
             // Đọc template HTML
-            var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "OTPEmailTemplate.html");
+            // Tìm template trong thư mục project, không phải bin/Debug
+            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            var projectRoot = Path.GetFullPath(Path.Combine(baseDirectory, "..", "..", "..", ".."));
+            var templatePath = Path.Combine(projectRoot, "FitnessCal.BLL", "Templates", "OTPEmailTemplate.html");
+            
+            // Fallback: tìm trong thư mục hiện tại
+            if (!File.Exists(templatePath))
+            {
+                templatePath = Path.Combine(baseDirectory, "Templates", "OTPEmailTemplate.html");
+            }
+            
+            // Fallback cuối: tìm trong thư mục BLL
+            if (!File.Exists(templatePath))
+            {
+                var bllPath = Path.Combine(projectRoot, "FitnessCal.BLL", "Templates", "OTPEmailTemplate.html");
+                if (File.Exists(bllPath))
+                {
+                    templatePath = bllPath;
+                }
+            }
+            
+            Console.WriteLine($"Looking for OTP template at: {templatePath}");
+            Console.WriteLine($"OTP template exists: {File.Exists(templatePath)}");
+            
             var htmlTemplate = File.ReadAllText(templatePath);
+
+            // Chuyển thời gian hết hạn từ UTC sang giờ Việt Nam (UTC+7)
+            var expiresAtVietnam = ConvertUtcToVietnamTime(expiresAt);
 
             // Thay thế các placeholder
             var emailContent = htmlTemplate
                 .Replace("{PurposeText}", purposeText)
                 .Replace("{OTPCode}", otpCode)
-                .Replace("{ExpiresAt}", expiresAt.ToString("HH:mm dd/MM/yyyy"));
+                .Replace("{ExpiresAt}", expiresAtVietnam.ToString("HH:mm dd/MM/yyyy"));
 
             return emailContent;
+        }
+
+        private static DateTime ConvertUtcToVietnamTime(DateTime utcDateTime)
+        {
+            if (utcDateTime.Kind != DateTimeKind.Utc)
+            {
+                utcDateTime = DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
+            }
+
+            try
+            {
+                // Windows
+                var tz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, tz);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                try
+                {
+                    // Linux/macOS
+                    var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok");
+                    return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, tz);
+                }
+                catch
+                {
+                    // Fallback +7
+                    return utcDateTime.AddHours(7);
+                }
+            }
         }
 
         private string HashPassword(string password)

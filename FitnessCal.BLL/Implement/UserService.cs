@@ -1,6 +1,6 @@
 ﻿using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.UserDTO.Response;
-using FitnessCal.BLL.DTO.CommonDTO;
+using FitnessCal.BLL.DTO.DashboardDTO.Response;
 using FitnessCal.BLL.Constants;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
@@ -63,7 +63,7 @@ namespace FitnessCal.BLL.Implement
         {
             try
             {
-                var users = await _unitOfWork.Users.GetAllAsync();
+                var users = await _unitOfWork.Users.GetAllAsync(u => u.Role == "User");
 
                 var userDTOs = users.Select(user => new UserResponseDTO
                 {
@@ -185,7 +185,6 @@ namespace FitnessCal.BLL.Implement
             }
         }
 
-
         public async Task<IEnumerable<UserResponseDTO>> GetUsersWithoutMealLogAsync(DateOnly today)
         {
             try
@@ -225,5 +224,66 @@ namespace FitnessCal.BLL.Implement
             }
         }
 
+        public async Task<RevenueStatisticsDTO> GetRevenueStatisticsAsync()
+        {
+            try
+            {
+                var allSubscriptions = await _unitOfWork.UserSubscriptions.GetAllAsync(s => s.PaymentStatus == "paid");
+
+                var now = DateTime.UtcNow;
+                var startOfThisMonth = new DateTime(now.Year, now.Month, 1);
+                var startOfLastMonth = startOfThisMonth.AddMonths(-1);
+                var startOfNextMonth = startOfThisMonth.AddMonths(1);
+                var startOfThisYear = new DateTime(now.Year, 1, 1);
+                var startOfLastYear = new DateTime(now.Year - 1, 1, 1);
+                var startOfThisDayLastYear = new DateTime(now.Year - 1, now.Month, now.Day);
+
+                // Doanh thu tổng (paid)
+                var totalRevenue = allSubscriptions.Sum(s => s.PriceAtPurchase);
+
+                // Doanh thu theo tháng (sử dụng PriceAtPurchase)
+                var revenueThisMonth = allSubscriptions
+                    .Where(s => s.StartDate >= startOfThisMonth && s.StartDate < startOfNextMonth)
+                    .Sum(s => s.PriceAtPurchase);
+
+                var revenueLastMonth = allSubscriptions
+                    .Where(s => s.StartDate >= startOfLastMonth && s.StartDate < startOfThisMonth)
+                    .Sum(s => s.PriceAtPurchase);
+
+                var revenueGrowthPercentage = revenueLastMonth > 0
+                    ? (double)((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100
+                    : 0;
+
+                // YTD YoY
+                var totalRevenueYTD = allSubscriptions
+                    .Where(s => s.StartDate >= startOfThisYear && s.StartDate <= now)
+                    .Sum(s => s.PriceAtPurchase);
+
+                var totalRevenueYTDLastYear = allSubscriptions
+                    .Where(s => s.StartDate >= startOfLastYear && s.StartDate < startOfThisYear)
+                    .Where(s => s.StartDate.Month < now.Month || (s.StartDate.Month == now.Month && s.StartDate.Day <= now.Day))
+                    .Sum(s => s.PriceAtPurchase);
+
+                var totalRevenueYTDGrowthPercentage = totalRevenueYTDLastYear > 0
+                    ? (double)((totalRevenueYTD - totalRevenueYTDLastYear) / totalRevenueYTDLastYear) * 100
+                    : 0;
+
+                return new RevenueStatisticsDTO
+                {
+                    TotalRevenue = totalRevenue,
+                    RevenueThisMonth = revenueThisMonth,
+                    RevenueLastMonth = revenueLastMonth,
+                    RevenueGrowthPercentage = Math.Round(revenueGrowthPercentage, 1),
+                    TotalRevenueYTD = totalRevenueYTD,
+                    TotalRevenueYTDLastYear = totalRevenueYTDLastYear,
+                    TotalRevenueYTDGrowthPercentage = Math.Round(totalRevenueYTDGrowthPercentage, 1)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving revenue statistics");
+                throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
+            }
+        }
     }
 }

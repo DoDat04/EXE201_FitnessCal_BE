@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using FitnessCal.BLL.Define;
+using FitnessCal.BLL.DTO.DashboardDTO.Response;
 using FitnessCal.BLL.DTO.CommonDTO;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace FitnessCal.API.Controllers
 {
@@ -20,17 +23,17 @@ namespace FitnessCal.API.Controllers
         }
 
         [HttpGet("user-statistics")]
-        public async Task<ActionResult<DashboardResponseDTO>> GetUserStatistics()
+        public async Task<ActionResult<ApiResponse<UserStatisticsDTO>>> GetUserStatistics()
         {
             try
             {
                 var statistics = await _userService.GetUserStatisticsAsync();
                 
-                var response = new DashboardResponseDTO
+                var response = new ApiResponse<UserStatisticsDTO>
                 {
-                    UserStatistics = statistics,
-                    IsSuccess = true,
-                    Message = "User statistics retrieved successfully"
+                    Success = true,
+                    Message = "User statistics retrieved successfully",
+                    Data = statistics
                 };
 
                 return Ok(response);
@@ -39,10 +42,45 @@ namespace FitnessCal.API.Controllers
             {
                 _logger.LogError(ex, "Error occurred while retrieving user statistics");
                 
-                var response = new DashboardResponseDTO
+                var response = new ApiResponse<UserStatisticsDTO>
                 {
-                    IsSuccess = false,
-                    Message = "Failed to retrieve user statistics"
+                    Success = false,
+                    Message = "Failed to retrieve user statistics",
+                    Data = null
+                };
+
+                return StatusCode(500, response);
+            }
+        }
+
+        
+
+        // New: Revenue statistics endpoint
+        [HttpGet("revenue-statistics")]
+        public async Task<ActionResult<ApiResponse<RevenueStatisticsDTO>>> GetRevenueStatistics()
+        {
+            try
+            {
+                var statistics = await _userService.GetRevenueStatisticsAsync();
+
+                var response = new ApiResponse<RevenueStatisticsDTO>
+                {
+                    Success = true,
+                    Message = "Revenue statistics retrieved successfully",
+                    Data = statistics
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving revenue statistics");
+
+                var response = new ApiResponse<RevenueStatisticsDTO>
+                {
+                    Success = false,
+                    Message = "Failed to retrieve revenue statistics",
+                    Data = null
                 };
 
                 return StatusCode(500, response);
