@@ -256,5 +256,8 @@ namespace FitnessCal.BLL.Implement
                 _ => 600
             };
         }
+
+       
+
     }
 }

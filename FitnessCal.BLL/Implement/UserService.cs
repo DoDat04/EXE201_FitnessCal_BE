@@ -184,5 +184,46 @@ namespace FitnessCal.BLL.Implement
                 throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
             }
         }
+
+
+        public async Task<IEnumerable<UserResponseDTO>> GetUsersWithoutMealLogAsync(DateOnly today)
+        {
+            try
+            {
+                // Lấy tất cả users active
+                var allUsers = await _unitOfWork.Users.GetAllAsync(u => u.IsActive == 1);
+
+                // Lấy tất cả meal logs cho ngày hôm nay
+                var mealLogsToday = await _unitOfWork.UserMealLogs
+                    .GetAllAsync(l => l.MealDate == today);
+
+                var userIdsWithLogs = mealLogsToday.Select(l => l.UserId).ToHashSet();
+
+                // Chỉ lấy users chưa có meal log
+                var usersWithoutLog = allUsers
+                    .Where(u => !userIdsWithLogs.Contains(u.UserId))
+                    .Select(u => new UserResponseDTO
+                    {
+                        UserId = u.UserId,
+                        FirstName = u.FirstName,
+                        LastName = u.LastName,
+                        Email = u.Email,
+                        Role = u.Role,
+                        IsActive = u.IsActive,
+                        CreatedAt = u.CreatedAt
+                    })
+                    .ToList();
+
+                _logger.LogInformation("Found {Count} users without meal log for {Date}", usersWithoutLog.Count, today);
+
+                return usersWithoutLog;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving users without meal log for {Date}", today);
+                throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
+            }
+        }
+
     }
 }

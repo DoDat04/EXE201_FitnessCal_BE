@@ -9,5 +9,6 @@ namespace FitnessCal.BLL.Define
         Task<bool> DeleteUserAsync(Guid userId);
         Task<bool> UnBanUserAsync(Guid userId);
         Task<UserStatisticsDTO> GetUserStatisticsAsync();
+        Task<IEnumerable<UserResponseDTO>> GetUsersWithoutMealLogAsync(DateOnly today);
     }
 }

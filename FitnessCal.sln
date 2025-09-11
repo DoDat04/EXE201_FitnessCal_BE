@@ -1,15 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35919.96 d17.13
+VisualStudioVersion = 17.13.35919.96
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessCal.API", "FitnessCal.API\FitnessCal.API.csproj", "{E757EA78-9D65-4281-ACB0-8FB1CC023EB6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FitnessCal.API", "FitnessCal.API\FitnessCal.API.csproj", "{E757EA78-9D65-4281-ACB0-8FB1CC023EB6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessCal.DAL", "FitnessCal.DAL\FitnessCal.DAL.csproj", "{51886ABC-F592-43E3-A8EF-9AB229B2D478}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FitnessCal.DAL", "FitnessCal.DAL\FitnessCal.DAL.csproj", "{51886ABC-F592-43E3-A8EF-9AB229B2D478}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessCal.BLL", "FitnessCal.BLL\FitnessCal.BLL.csproj", "{8D5966F3-3A3E-4D8C-8267-30DED14E75CA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FitnessCal.BLL", "FitnessCal.BLL\FitnessCal.BLL.csproj", "{8D5966F3-3A3E-4D8C-8267-30DED14E75CA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessCal.Domain", "FitnessCal.Domain\FitnessCal.Domain.csproj", "{ADC28A7F-01A8-49FF-9D9A-6DFB76A4B4A4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FitnessCal.Domain", "FitnessCal.Domain\FitnessCal.Domain.csproj", "{ADC28A7F-01A8-49FF-9D9A-6DFB76A4B4A4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessCal.Worker", "FitnessCal.Worker\FitnessCal.Worker.csproj", "{65948B07-B6EE-47D7-AB79-9B5E6DCC59DB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{ADC28A7F-01A8-49FF-9D9A-6DFB76A4B4A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ADC28A7F-01A8-49FF-9D9A-6DFB76A4B4A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ADC28A7F-01A8-49FF-9D9A-6DFB76A4B4A4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{65948B07-B6EE-47D7-AB79-9B5E6DCC59DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65948B07-B6EE-47D7-AB79-9B5E6DCC59DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65948B07-B6EE-47D7-AB79-9B5E6DCC59DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65948B07-B6EE-47D7-AB79-9B5E6DCC59DB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
