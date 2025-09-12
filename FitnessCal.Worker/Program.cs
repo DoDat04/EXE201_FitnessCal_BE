@@ -5,6 +5,8 @@ using FitnessCal.DAL.Define;
 using FitnessCal.DAL.Implement;
 using FitnessCal.Domain;
 using FitnessCal.Worker;
+using FitnessCal.Worker.Define;
+using FitnessCal.Worker.Implement;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Scrutor;
@@ -42,7 +44,10 @@ builder.Services.Configure<PayOSSettings>(builder.Configuration.GetSection("PayO
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 
 // Worker
+builder.Services.AddScoped<IDailyMealLogGeneratorService, DailyMealLogGeneratorService>();
+builder.Services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
 builder.Services.AddHostedService<DailyMealLogWorker>();
+
 
 var host = builder.Build();
 host.Run();

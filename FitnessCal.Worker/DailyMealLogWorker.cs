@@ -1,69 +1,46 @@
-﻿using FitnessCal.BLL.Define;
-using Microsoft.Extensions.Hosting;
+﻿using FitnessCal.Worker.Define;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace FitnessCal.Worker
+public class DailyMealLogWorker : BackgroundService
 {
-    public class DailyMealLogWorker : BackgroundService
+    private readonly ILogger<DailyMealLogWorker> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IDailySchedulerService _schedulerService;
+
+    public DailyMealLogWorker(
+        ILogger<DailyMealLogWorker> logger,
+        IServiceScopeFactory scopeFactory,
+        IDailySchedulerService schedulerService)
     {
-        private readonly ILogger<DailyMealLogWorker> _logger;
-        private readonly IServiceProvider _serviceProvider;
+        _logger = logger;
+        _scopeFactory = scopeFactory;
+        _schedulerService = schedulerService;
+    }
 
-        public DailyMealLogWorker(IServiceProvider serviceProvider, ILogger<DailyMealLogWorker> logger)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("DailyMealLogWorker started.");
+
+        while (!stoppingToken.IsCancellationRequested)
         {
-            _serviceProvider = serviceProvider;
-            _logger = logger;
-        }
-
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            _logger.LogInformation("DailyMealLogWorker started.");
-
-            while (!stoppingToken.IsCancellationRequested)
+            try
             {
-                try
-                {
-                    using var scope = _serviceProvider.CreateScope();
-                    var mealLogService = scope.ServiceProvider.GetRequiredService<IUserMealLogService>();
-                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                using var scope = _scopeFactory.CreateScope();
+                var mealLogService = scope.ServiceProvider.GetRequiredService<IDailyMealLogGeneratorService>();
 
-                    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                await mealLogService.GenerateDailyMealLogsAsync();
 
-                    // Lấy trực tiếp users chưa có meal log hôm nay
-                    var usersWithoutLog = await userService.GetUsersWithoutMealLogAsync(today);
-
-                    if (!usersWithoutLog.Any())
-                    {
-                        _logger.LogInformation("All users already have meal logs for {Date}", today);
-                    }
-                    else
-                    {
-                        _logger.LogInformation("Creating meal logs for {Count} users on {Date}", usersWithoutLog.Count(), today);
-
-                        // Parallel xử lý để tăng tốc (giới hạn concurrency nếu cần)
-                        var tasks = usersWithoutLog.Select(user =>
-                            mealLogService.AutoCreateMealLogsAsync(user.UserId, new BLL.DTO.UserMealLogDTO.Request.CreateUserMealLogDTO
-                            {
-                                MealDate = today
-                            })
-                        );
-
-                        await Task.WhenAll(tasks);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error in DailyMealLogWorker");
-                }
-
-                // Delay 24h
-                await Task.Delay(TimeSpan.FromDays(1), stoppingToken);
+                _logger.LogInformation("Daily meal logs generated successfully.");
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating daily meal logs");
+            }
+
+            // Delay tới lần chạy tiếp theo
+            await Task.Delay(_schedulerService.GetDelayUntilNextRun(), stoppingToken);
         }
     }
 }
