@@ -190,7 +190,7 @@ namespace FitnessCal.BLL.Implement
             try
             {
                 // Lấy tất cả users active
-                var allUsers = await _unitOfWork.Users.GetAllAsync(u => u.IsActive == 1);
+                var allUsers = await _unitOfWork.Users.GetAllAsync(u => u.IsActive == 1 && u.Role == "User");
 
                 // Lấy tất cả meal logs cho ngày hôm nay
                 var mealLogsToday = await _unitOfWork.UserMealLogs
