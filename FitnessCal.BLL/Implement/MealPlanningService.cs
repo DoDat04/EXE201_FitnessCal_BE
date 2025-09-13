@@ -1,5 +1,6 @@
 using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.MealPlanningDTO;
+using FitnessCal.BLL.Helpers;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 using System.Text.Json;
@@ -75,9 +76,9 @@ namespace FitnessCal.BLL.Implement
                     DailyTarget = new NutritionTargetDTO
                     {
                         TotalCalories = dailyCalories,
-                        TotalProtein = CalculateTargetProtein(dailyCalories),
-                        TotalCarbs = CalculateTargetCarbs(dailyCalories),
-                        TotalFat = CalculateTargetFat(dailyCalories)
+                        TotalProtein = MacroCalculationHelper.CalculateTargetProtein(dailyCalories),
+                        TotalCarbs = MacroCalculationHelper.CalculateTargetCarbs(dailyCalories),
+                        TotalFat = MacroCalculationHelper.CalculateTargetFat(dailyCalories)
                     },
                     ActualDaily = CalculateDailyNutrition(mealPlan.Meals),
                     Meals = mealPlan.Meals
@@ -337,9 +338,9 @@ Trả về JSON với format chính xác (quantity là bội số 100g):
             var dailyTolerance = 100.0; // thiếu tối đa 100 calo
 
             // Tính toán target macro nutrients cho cả ngày
-            var targetProtein = CalculateTargetProtein(targetCalories);
-            var targetCarbs = CalculateTargetCarbs(targetCalories);
-            var targetFat = CalculateTargetFat(targetCalories);
+            var targetProtein = MacroCalculationHelper.CalculateTargetProtein(targetCalories);
+            var targetCarbs = MacroCalculationHelper.CalculateTargetCarbs(targetCalories);
+            var targetFat = MacroCalculationHelper.CalculateTargetFat(targetCalories);
 
             // Tính toán target macro nutrients cho mỗi bữa
             var targetProteinPerMeal = targetProtein / mealCount;
@@ -614,24 +615,6 @@ Trả về JSON với format chính xác (quantity là bội số 100g):
                 TotalCarbs = RoundToDecimal(meals.Sum(m => m.MealNutrition.Carbs), 1),
                 TotalFat = RoundToDecimal(meals.Sum(m => m.MealNutrition.Fat), 1)
             };
-        }
-
-        private double CalculateTargetProtein(double dailyCalories)
-        {
-            // 15-25% của daily calories, 1g protein = 4 cal
-            return (dailyCalories * 0.20) / 4;
-        }
-
-        private double CalculateTargetCarbs(double dailyCalories)
-        {
-            // 45-65% của daily calories, 1g carbs = 4 cal
-            return (dailyCalories * 0.55) / 4;
-        }
-
-        private double CalculateTargetFat(double dailyCalories)
-        {
-            // 20-35% của daily calories, 1g fat = 9 cal
-            return (dailyCalories * 0.275) / 9;
         }
 
         private async Task SaveMealPlanToDatabase(Guid userId, MealPlanningResponseDTO mealPlan)

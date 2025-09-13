@@ -1,6 +1,7 @@
 using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.UserHealthDTO.Request;
 using FitnessCal.BLL.DTO.UserHealthDTO.Response;
+using FitnessCal.BLL.Helpers;
 using FitnessCal.DAL.Define;
 using Microsoft.Extensions.Logging;
 
@@ -40,6 +41,9 @@ public class CalorieCalculationService : ICalorieCalculationService
             var tdee = CalculateTDEE(bmr, request.ActivityLevel);
             var dailyCalories = AdjustCaloriesForGoal(tdee, normalizedGoal, request.IntensityLevel);
 
+            // Tính toán macro targets từ daily calories
+            var macroTarget = MacroCalculationHelper.CalculateAllMacroTargets(dailyCalories);
+
             var explanation = GenerateExplanation(request.Gender, normalizedGoal, request.ActivityLevel, request.IntensityLevel);
             var recommendation = GenerateRecommendation(normalizedGoal, dailyCalories, request.IntensityLevel);
             var dietRecommendation = GenerateDietRecommendation(request.DietType, normalizedGoal, dailyCalories);
@@ -53,6 +57,7 @@ public class CalorieCalculationService : ICalorieCalculationService
                 BMR = Math.Round(bmr, 0),
                 TDEE = Math.Round(tdee, 0),
                 DailyCalories = Math.Round(dailyCalories, 0),
+                MacroTarget = macroTarget,
                 Explanation = explanation,
                 Recommendation = recommendation,
                 DietRecommendation = dietRecommendation,
