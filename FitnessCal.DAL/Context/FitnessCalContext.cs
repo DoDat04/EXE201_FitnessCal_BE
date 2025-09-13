@@ -29,6 +29,8 @@ public partial class FitnessCalContext : DbContext
 
     public virtual DbSet<UserMealLog> UserMealLogs { get; set; }
 
+    public virtual DbSet<Allergy> Allergies { get; set; }
+
     public virtual DbSet<UserWeightLog> UserWeightLogs { get; set; }
 
     public virtual DbSet<PremiumPackage> PremiumPackages { get; set; }
@@ -524,6 +526,44 @@ public partial class FitnessCalContext : DbContext
             entity.Property(e => e.UsedAt)
                 .HasColumnName("usedat")
                 .HasColumnType("timestamp with time zone");
+        });
+
+        modelBuilder.Entity<Allergy>(entity =>
+        {
+            entity.ToTable("allergies");
+
+            entity.HasKey(e => e.AllergyId).HasName("allergies_pkey");
+
+            entity.Property(e => e.AllergyId)
+                .HasColumnName("allergy_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .IsRequired()
+                .HasColumnName("user_id")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.FoodId)
+                .IsRequired()
+                .HasColumnName("food_id");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at")
+                .HasColumnType("timestamp with time zone");
+
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("updated_at")
+                .HasColumnType("timestamp with time zone");
+
+            entity.HasOne(d => d.User).WithMany(p => p.Allergies)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("allergies_user_id_fkey");
+
+            entity.HasOne(d => d.Food).WithMany()
+                .HasForeignKey(d => d.FoodId)
+                .HasConstraintName("allergies_food_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

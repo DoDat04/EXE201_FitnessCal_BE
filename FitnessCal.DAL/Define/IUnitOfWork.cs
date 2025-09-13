@@ -14,6 +14,7 @@ namespace FitnessCal.DAL.Define
         IPaymentRepository Payments { get; }
         IUserSubscriptionRepository UserSubscriptions { get; }
         IOTPRepository OTPs { get; }
+        IAllergyRepository Allergies { get; }
         Task<bool> Save();
     }
 }

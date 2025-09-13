@@ -15,6 +15,7 @@ namespace FitnessCal.BLL.Implement
         private readonly IFoodRepository _foodRepository;
         private readonly IGeminiService _geminiService;
         private readonly ILogger<MealPlanningService> _logger;
+        private readonly IAllergyService _allergyService;
 
         private readonly IUserHealthRepository _userHealthRepository;
         private readonly IUserMealLogRepository _userMealLogRepository;
@@ -26,7 +27,8 @@ namespace FitnessCal.BLL.Implement
             IGeminiService geminiService,
             IUserMealLogRepository userMealLogRepository,
             IUserMealItemRepository userMealItemRepository,
-            ILogger<MealPlanningService> logger)
+            ILogger<MealPlanningService> logger,
+            IAllergyService allergyService)
         {
             _foodRepository = foodRepository;
             _userHealthRepository = userHealthRepository;
@@ -34,6 +36,7 @@ namespace FitnessCal.BLL.Implement
             _userMealLogRepository = userMealLogRepository;
             _userMealItemRepository = userMealItemRepository;
             _logger = logger;
+            _allergyService = allergyService;
         }
 
         public async Task<MealPlanningResponseDTO> GenerateMealPlanAsync(Guid userId)
@@ -53,17 +56,31 @@ namespace FitnessCal.BLL.Implement
                 var dailyCalories = userHealth.DailyCalories.Value;
                 var mealCount = DecideMealCount(dailyCalories);
 
-                // 3. Tạo prompt cho Gemini
-                var prompt = GeneratePrompt(availableFoods.ToList(), null, userHealth, mealCount, dailyCalories);
+                // 3. Lấy danh sách allergies của user
+                List<string> allergyNames = new List<string>();
+                try
+                {
+                    var userAllergyFoodIds = await _allergyService.GetUserAllergyFoodIdsAsync(userId);
+                    // Lấy tên food từ foodId để sử dụng trong prompt
+                    var allergyFoods = availableFoods.Where(f => userAllergyFoodIds.Contains(f.FoodId));
+                    allergyNames = allergyFoods.Select(f => f.Name.ToLower()).ToList();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Không thể lấy danh sách dị ứng của user, tiếp tục mà không lọc dị ứng");
+                }
+
+                // 4. Tạo prompt cho Gemini
+                var prompt = GeneratePrompt(availableFoods.ToList(), allergyNames, userHealth, mealCount, dailyCalories);
                 
-                // 4. Gọi Gemini API
+                // 5. Gọi Gemini API
                 var geminiResponse = await _geminiService.GenerateMealPlanAsync(prompt);
                 
-                // 5. Parse response thành MealPlan
-                var mealPlan = ParseGeminiResponse(geminiResponse, availableFoods.ToList());
+                // 6. Parse response thành MealPlan
+                var mealPlan = ParseGeminiResponse(geminiResponse, availableFoods.ToList(), allergyNames);
                 
-                // 6. Tính toán và validate
-                mealPlan = CalculateAndValidateNutrition(mealPlan, dailyCalories);
+                // 7. Tính toán và validate
+                mealPlan = CalculateAndValidateNutrition(mealPlan, dailyCalories, allergyNames);
                 
                 // 7. Lưu meal plan vào database
                 await SaveMealPlanToDatabase(userId, mealPlan);
@@ -102,7 +119,7 @@ namespace FitnessCal.BLL.Implement
             return 3; // <= 2000: 3 bữa
         }
 
-        private string GeneratePrompt(List<Food> foods, MealPlanningRequestDTO? _unused, UserHealth? userHealth, int mealCount, double dailyCalories)
+        private string GeneratePrompt(List<Food> foods, List<string> userAllergies, UserHealth? userHealth, int mealCount, double dailyCalories)
         {
             var foodList = string.Join("\n", foods.Select(f => 
                 $"- [{f.FoodId}] {f.Name}: {f.Calories} cal, {f.Protein}g protein, {f.Carbs}g carbs, {f.Fat}g fat"));
@@ -121,6 +138,11 @@ Thông tin người dùng:
 
             var excludedFoods = "";
 
+            var allergiesSection = userAllergies.Any() 
+                ? $"\n\nQUAN TRỌNG - NGƯỜI DÙNG DỊ ỨNG VỚI CÁC THÀNH PHẦN SAU (TUYỆT ĐỐI KHÔNG ĐƯỢC SỬ DỤNG):\n" +
+                  string.Join("\n", userAllergies.Select(a => $"- {a}"))
+                : "\n\nNGƯỜI DÙNG KHÔNG CÓ DỊ ỨNG VỚI THÀNH PHẦN NÀO";
+
             return $@"
 Bạn là chuyên gia dinh dưỡng người Việt Nam. Hãy tạo thực đơn {mealCount} bữa với tổng calories gần nhất {dailyCalories} cal.
 
@@ -128,6 +150,7 @@ Bạn là chuyên gia dinh dưỡng người Việt Nam. Hãy tạo thực đơn
 
 Danh sách thực phẩm có sẵn:
 {foodList}
+{allergiesSection}
 
 Yêu cầu:
 1. Chia thành đúng {mealCount} bữa từ các bữa sau (chọn phù hợp với daily_calories):
@@ -147,11 +170,14 @@ Yêu cầu:
 6. Mỗi bữa phải có đủ 3 nhóm: tinh bột (gạo, khoai, bánh), đạm (thịt, cá, đậu), rau củ
 7. Ưu tiên món ăn Việt Nam nếu có thể
 8. Chọn món ăn phù hợp với từng bữa
-9. Chỉ trả về JSON hợp lệ, không kèm bất kỳ văn bản, markdown hay ``` nào.
-10. Quantity là bội số của 100g (ví dụ 1 = 100g, 1.5 = 150g). Dữ liệu dinh dưỡng trong bảng Food là trên 100g.
-11. Tổng calories cả ngày trong khoảng ±5% so với {dailyCalories}; mỗi bữa trong khoảng ±10% so với mục tiêu bữa.
-12. BẮT BUỘC chọn món từ danh sách trên và điền đúng foodId tương ứng. Không tự tạo tên/ID mới.
-13. BẮT BUỘC sử dụng đúng tên bữa ăn như đã liệt kê ở trên (Breakfast, Lunch, Dinner, Morning Snack, Afternoon Snack, Dinner Snack).
+9. TUYỆT ĐỐI KHÔNG sử dụng các thành phần mà người dùng dị ứng
+10. Nếu không thể tạo được meal plan do dị ứng, hãy thông báo và đề xuất giải pháp
+11. Ưu tiên các món ăn an toàn, không chứa thành phần dị ứng
+12. Chỉ trả về JSON hợp lệ, không kèm bất kỳ văn bản, markdown hay ``` nào.
+13. Quantity là bội số của 100g (ví dụ 1 = 100g, 1.5 = 150g). Dữ liệu dinh dưỡng trong bảng Food là trên 100g.
+14. Tổng calories cả ngày trong khoảng ±5% so với {dailyCalories}; mỗi bữa trong khoảng ±10% so với mục tiêu bữa.
+15. BẮT BUỘC chọn món từ danh sách trên và điền đúng foodId tương ứng. Không tự tạo tên/ID mới.
+16. BẮT BUỘC sử dụng đúng tên bữa ăn như đã liệt kê ở trên (Breakfast, Lunch, Dinner, Morning Snack, Afternoon Snack, Dinner Snack).
 
 Trả về JSON với format chính xác (quantity là bội số 100g):
 {{
@@ -172,7 +198,7 @@ Trả về JSON với format chính xác (quantity là bội số 100g):
 ";
         }
 
-        private MealPlanningResponseDTO ParseGeminiResponse(string geminiResponse, List<Food> availableFoods)
+        private MealPlanningResponseDTO ParseGeminiResponse(string geminiResponse, List<Food> availableFoods, List<string> userAllergies)
         {
             try
             {
@@ -227,7 +253,6 @@ Trả về JSON với format chính xác (quantity là bội số 100g):
                     ActualCalories = 0,
                     Foods = gm.Foods.Select(gf =>
                     {
-                        // Resolve id by id first, then by name fallback
                         int resolvedId = gf.FoodId;
                         var baseNutri = GetFoodNutrition(gf.FoodId, gf.FoodName, availableFoods, out resolvedId);
                         return new MealFoodDTO
@@ -330,7 +355,7 @@ Trả về JSON với format chính xác (quantity là bội số 100g):
             };
         }
 
-        private MealPlanningResponseDTO CalculateAndValidateNutrition(MealPlanningResponseDTO mealPlan, double targetCalories)
+        private MealPlanningResponseDTO CalculateAndValidateNutrition(MealPlanningResponseDTO mealPlan, double targetCalories, List<string> userAllergies)
         {
             var mealCount = mealPlan.Meals.Count;
             var targetCaloriesPerMeal = targetCalories / mealCount;
@@ -341,6 +366,32 @@ Trả về JSON với format chính xác (quantity là bội số 100g):
             var targetProtein = MacroCalculationHelper.CalculateTargetProtein(targetCalories);
             var targetCarbs = MacroCalculationHelper.CalculateTargetCarbs(targetCalories);
             var targetFat = MacroCalculationHelper.CalculateTargetFat(targetCalories);
+
+            // Validate no allergy foods are included
+            foreach (var meal in mealPlan.Meals)
+            {
+                var foodsToRemove = new List<MealFoodDTO>();
+                
+                foreach (var food in meal.Foods)
+                {
+                    var foodName = food.FoodName.ToLower();
+                    var hasAllergy = userAllergies.Any(allergy => foodName.Contains(allergy.ToLower()));
+                    
+                    if (hasAllergy)
+                    {
+                        _logger.LogWarning("Meal plan chứa món dị ứng: {FoodName} cho user dị ứng: {Allergies}", 
+                            food.FoodName, string.Join(", ", userAllergies));
+                        
+                        foodsToRemove.Add(food);
+                    }
+                }
+                
+                // Remove problematic foods
+                foreach (var foodToRemove in foodsToRemove)
+                {
+                    meal.Foods.Remove(foodToRemove);
+                }
+            }
 
             // Tính toán target macro nutrients cho mỗi bữa
             var targetProteinPerMeal = targetProtein / mealCount;
