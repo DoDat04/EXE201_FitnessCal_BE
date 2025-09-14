@@ -19,6 +19,7 @@ namespace FitnessCal.DAL.Implement
         public IUserSubscriptionRepository UserSubscriptions { get; }
         public IOTPRepository OTPs { get; }
         public IAllergyRepository Allergies { get; }
+        public IFavoriteFoodRepository FavoriteFoods { get; }
         public UnitOfWork(
             FitnessCalContext context,
             IUserRepository users,
@@ -32,7 +33,8 @@ namespace FitnessCal.DAL.Implement
             IPaymentRepository payments,
             IUserSubscriptionRepository userSubscriptions,
             IOTPRepository otps,
-            IAllergyRepository allergies)
+            IAllergyRepository allergies,
+            IFavoriteFoodRepository favoriteFoods)
         {
             _context = context;
             Users = users;
@@ -47,6 +49,7 @@ namespace FitnessCal.DAL.Implement
             UserSubscriptions = userSubscriptions;
             OTPs = otps;
             Allergies = allergies;
+            FavoriteFoods = favoriteFoods;
         }
 
         public async Task<bool> Save()

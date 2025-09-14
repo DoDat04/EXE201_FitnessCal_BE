@@ -32,4 +32,6 @@ public partial class User
     public virtual ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();
 
     public virtual ICollection<Allergy> Allergies { get; set; } = new List<Allergy>();
+
+    public virtual ICollection<FavoriteFood> FavoriteFoods { get; set; } = new List<FavoriteFood>();
 }
