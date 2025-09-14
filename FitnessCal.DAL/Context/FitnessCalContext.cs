@@ -31,6 +31,8 @@ public partial class FitnessCalContext : DbContext
 
     public virtual DbSet<Allergy> Allergies { get; set; }
 
+    public virtual DbSet<FavoriteFood> FavoriteFoods { get; set; }
+
     public virtual DbSet<UserWeightLog> UserWeightLogs { get; set; }
 
     public virtual DbSet<PremiumPackage> PremiumPackages { get; set; }
@@ -564,6 +566,44 @@ public partial class FitnessCalContext : DbContext
             entity.HasOne(d => d.Food).WithMany()
                 .HasForeignKey(d => d.FoodId)
                 .HasConstraintName("allergies_food_id_fkey");
+        });
+
+        modelBuilder.Entity<FavoriteFood>(entity =>
+        {
+            entity.ToTable("favorite_foods");
+
+            entity.HasKey(e => e.FavoriteId).HasName("favorite_foods_pkey");
+
+            entity.Property(e => e.FavoriteId)
+                .HasColumnName("favorite_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .IsRequired()
+                .HasColumnName("user_id")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.FoodId)
+                .IsRequired()
+                .HasColumnName("food_id");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at")
+                .HasColumnType("timestamp with time zone");
+
+            entity.HasOne(d => d.User).WithMany(p => p.FavoriteFoods)
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("favorite_foods_user_id_fkey");
+
+            entity.HasOne(d => d.Food).WithMany()
+                .HasForeignKey(d => d.FoodId)
+                .HasConstraintName("favorite_foods_food_id_fkey");
+
+            // Unique constraint để tránh duplicate favorite cho cùng 1 user và food
+            entity.HasIndex(e => new { e.UserId, e.FoodId })
+                .IsUnique()
+                .HasDatabaseName("favorite_foods_user_food_unique");
         });
 
         OnModelCreatingPartial(modelBuilder);

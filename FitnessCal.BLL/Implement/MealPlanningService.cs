@@ -16,6 +16,7 @@ namespace FitnessCal.BLL.Implement
         private readonly IGeminiService _geminiService;
         private readonly ILogger<MealPlanningService> _logger;
         private readonly IAllergyService _allergyService;
+        private readonly IFavoriteFoodService _favoriteFoodService;
 
         private readonly IUserHealthRepository _userHealthRepository;
         private readonly IUserMealLogRepository _userMealLogRepository;
@@ -28,7 +29,8 @@ namespace FitnessCal.BLL.Implement
             IUserMealLogRepository userMealLogRepository,
             IUserMealItemRepository userMealItemRepository,
             ILogger<MealPlanningService> logger,
-            IAllergyService allergyService)
+            IAllergyService allergyService,
+            IFavoriteFoodService favoriteFoodService)
         {
             _foodRepository = foodRepository;
             _userHealthRepository = userHealthRepository;
@@ -37,6 +39,7 @@ namespace FitnessCal.BLL.Implement
             _userMealItemRepository = userMealItemRepository;
             _logger = logger;
             _allergyService = allergyService;
+            _favoriteFoodService = favoriteFoodService;
         }
 
         public async Task<MealPlanningResponseDTO> GenerateMealPlanAsync(Guid userId)
@@ -70,8 +73,22 @@ namespace FitnessCal.BLL.Implement
                     _logger.LogWarning(ex, "Không thể lấy danh sách dị ứng của user, tiếp tục mà không lọc dị ứng");
                 }
 
-                // 4. Tạo prompt cho Gemini
-                var prompt = GeneratePrompt(availableFoods.ToList(), allergyNames, userHealth, mealCount, dailyCalories);
+                // 4. Lấy danh sách favorite foods của user
+                List<string> favoriteFoodNames = new List<string>();
+                try
+                {
+                    var userFavoriteFoodIds = await _favoriteFoodService.GetUserFavoriteFoodIdsAsync(userId);
+                    // Lấy tên food từ foodId để sử dụng trong prompt
+                    var favoriteFoods = availableFoods.Where(f => userFavoriteFoodIds.Contains(f.FoodId));
+                    favoriteFoodNames = favoriteFoods.Select(f => f.Name.ToLower()).ToList();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Không thể lấy danh sách món yêu thích của user, tiếp tục mà không ưu tiên");
+                }
+
+                // 5. Tạo prompt cho Gemini
+                var prompt = GeneratePrompt(availableFoods.ToList(), allergyNames, favoriteFoodNames, userHealth, mealCount, dailyCalories);
                 
                 // 5. Gọi Gemini API
                 var geminiResponse = await _geminiService.GenerateMealPlanAsync(prompt);
@@ -119,7 +136,7 @@ namespace FitnessCal.BLL.Implement
             return 3; // <= 2000: 3 bữa
         }
 
-        private string GeneratePrompt(List<Food> foods, List<string> userAllergies, UserHealth? userHealth, int mealCount, double dailyCalories)
+        private string GeneratePrompt(List<Food> foods, List<string> userAllergies, List<string> favoriteFoodNames, UserHealth? userHealth, int mealCount, double dailyCalories)
         {
             var foodList = string.Join("\n", foods.Select(f => 
                 $"- [{f.FoodId}] {f.Name}: {f.Calories} cal, {f.Protein}g protein, {f.Carbs}g carbs, {f.Fat}g fat"));
@@ -143,6 +160,12 @@ Thông tin người dùng:
                   string.Join("\n", userAllergies.Select(a => $"- {a}"))
                 : "\n\nNGƯỜI DÙNG KHÔNG CÓ DỊ ỨNG VỚI THÀNH PHẦN NÀO";
 
+            var favoriteFoodsSection = favoriteFoodNames.Any()
+                ? $"\n\nƯU TIÊN - NGƯỜI DÙNG YÊU THÍCH CÁC MÓN SAU (ƯU TIÊN SỬ DỤNG NHƯNG KHÔNG BẮT BUỘC):\n" +
+                  string.Join("\n", favoriteFoodNames.Select(f => $"- {f}")) +
+                  "\n\nLƯU Ý: Chỉ ƯU TIÊN sử dụng các món này, không phải bữa nào cũng phải có. Cân bằng với các món khác để đảm bảo dinh dưỡng đa dạng."
+                : "\n\nNGƯỜI DÙNG CHƯA CÓ MÓN YÊU THÍCH ĐẶC BIỆT";
+
             return $@"
 Bạn là chuyên gia dinh dưỡng người Việt Nam. Hãy tạo thực đơn {mealCount} bữa với tổng calories gần nhất {dailyCalories} cal.
 
@@ -151,6 +174,7 @@ Bạn là chuyên gia dinh dưỡng người Việt Nam. Hãy tạo thực đơn
 Danh sách thực phẩm có sẵn:
 {foodList}
 {allergiesSection}
+{favoriteFoodsSection}
 
 Yêu cầu:
 1. Chia thành đúng {mealCount} bữa từ các bữa sau (chọn phù hợp với daily_calories):

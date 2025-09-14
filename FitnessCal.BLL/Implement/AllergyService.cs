@@ -23,7 +23,7 @@ namespace FitnessCal.BLL.Implement
             var exists = await _unitOfWork.Allergies.ExistsAsync(userId, dto.FoodId);
             if (exists)
             {
-                throw new ArgumentException($"Allergy for this food already exists");
+                throw new ArgumentException($"Thực phẩm dị ứng này đã tồn tại");
             }
 
             var allergy = new Allergy
@@ -40,7 +40,7 @@ namespace FitnessCal.BLL.Implement
             return new CreateAllergyResponseDTO
             {
                 AllergyId = allergy.AllergyId,
-                Message = "Allergy created successfully"
+                Message = "Thực phẩm dị ứng tạo thành công"
             };
         }
 
@@ -64,19 +64,19 @@ namespace FitnessCal.BLL.Implement
             var allergy = await _unitOfWork.Allergies.GetByIdAsync(allergyId);
             if (allergy == null)
             {
-                throw new KeyNotFoundException("Allergy not found");
+                throw new KeyNotFoundException("Không tìm thấy thực phẩm dị ứng");
             }
 
             // Kiểm tra quyền sở hữu
             if (allergy.UserId != userId)
             {
-                throw new UnauthorizedAccessException("You can only update your own allergies");
+                throw new UnauthorizedAccessException("Bạn chỉ có thể cập nhật thực phẩm dị ứng của bạn");
             }
 
             var exists = await _unitOfWork.Allergies.ExistsAsync(allergy.UserId, dto.FoodId);
             if (exists && allergy.FoodId != dto.FoodId)
             {
-                throw new ArgumentException($"Allergy for this food already exists");
+                throw new ArgumentException($"Thực phẩm dị ứng này đã tồn tại");
             }
 
             allergy.FoodId = dto.FoodId;
@@ -87,7 +87,7 @@ namespace FitnessCal.BLL.Implement
 
             return new UpdateAllergyResponseDTO
             {
-                Message = "Allergy updated successfully"
+                Message = "Thực phẩm dị ứng cập nhật thành công"
             };
         }
 
@@ -96,13 +96,13 @@ namespace FitnessCal.BLL.Implement
             var allergy = await _unitOfWork.Allergies.GetByIdAsync(allergyId);
             if (allergy == null)
             {
-                throw new KeyNotFoundException("Allergy not found");
+                throw new KeyNotFoundException("Không tìm thấy thực phẩm dị ứng");
             }
 
             // Kiểm tra quyền sở hữu
             if (allergy.UserId != userId)
             {
-                throw new UnauthorizedAccessException("You can only delete your own allergies");
+                throw new UnauthorizedAccessException("Bạn chỉ có thể xóa thực phẩm dị ứng của bạn");
             }
 
             await _unitOfWork.Allergies.DeleteAsync(allergy);
@@ -110,7 +110,7 @@ namespace FitnessCal.BLL.Implement
 
             return new DeleteAllergyResponseDTO
             {
-                Message = "Allergy deleted successfully"
+                Message = "Thực phẩm dị ứng được xóa thành công"
             };
         }
 

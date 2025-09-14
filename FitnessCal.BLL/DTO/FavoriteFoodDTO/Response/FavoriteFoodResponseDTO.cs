@@ -1,0 +1,11 @@
+namespace FitnessCal.BLL.DTO.FavoriteFoodDTO.Response
+{
+    public class FavoriteFoodResponseDTO
+    {
+        public int FavoriteId { get; set; }
+        public Guid UserId { get; set; }
+        public int FoodId { get; set; }
+        public string FoodName { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+}
