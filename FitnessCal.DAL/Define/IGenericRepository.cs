@@ -11,6 +11,8 @@ namespace FitnessCal.DAL.Define
         Task AddAsync(T entity);
         Task UpdateAsync(T entity);
         Task DeleteAsync(T entity);
+        Task<T?> FindAsync(Expression<Func<T, bool>> predicate);
+        Task<List<T>> FindAllAsync(Expression<Func<T, bool>> predicate);
         Task<int> SaveChangesAsync();
     }
 }

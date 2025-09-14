@@ -113,5 +113,39 @@ namespace FitnessCal.API.Controllers
                 });
             }
         }
+        [HttpPost("generate-foods-info")]
+        public async Task<ActionResult<ApiResponse<string>>> GenerateFoodsInformation([FromBody] string request)
+        {
+            try
+            {
+                var response = await _foodService.GenerateFoodsInformationAsync(request);
+                return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<string>
+                {
+                    Success = true,
+                    Message = "Thực phẩm được tạo thành công từ Gemini API",
+                    Data = response
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Invalid operation while generating foods information");
+                return StatusCode(ResponseCodes.StatusCodes.BAD_REQUEST, new ApiResponse<FoodResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while generating foods information");
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<FoodResponseDTO>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = null
+                });
+            }
+        }
     }
 }

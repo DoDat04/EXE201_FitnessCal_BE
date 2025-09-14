@@ -40,5 +40,22 @@ namespace FitnessCal.BLL.Implement
                 throw new InvalidOperationException("Failed to generate meal plan from Gemini API", ex);
             }
         }
+        
+        public async Task<string> GenerateFoodsAsync(string prompt)
+        {
+            try
+            {
+                var result = await _model.GenerateContent(prompt);
+                var response = result?.Text ?? string.Empty;
+
+                _logger.LogInformation("Gemini API response generated successfully");
+                return response;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while calling Gemini API");
+                throw new InvalidOperationException("Failed to generate foods from Gemini API", ex);
+            }
+        }
     }
 }
