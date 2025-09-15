@@ -261,6 +261,24 @@ namespace FitnessCal.BLL.Implement
                 }
             }
         }
+        public async Task CleanupUsedOTPsAsync()
+        {
+            try
+            {
+                var usedOTPs = await _otpRepository.GetUsedOTPsAsync();
+                if (usedOTPs.Any())
+                {
+                    _otpRepository.DeleteOTPs(usedOTPs); 
+                    await _unitOfWork.Save();            
+                    _logger.LogInformation("Cleaned up {Count} used OTPs", usedOTPs.Count);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cleaning up used OTPs");
+            }
+        }
+
 
         private string HashPassword(string password)
         {

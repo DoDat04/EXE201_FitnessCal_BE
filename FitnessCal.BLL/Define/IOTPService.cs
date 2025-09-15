@@ -12,5 +12,7 @@ namespace FitnessCal.BLL.Define
         Task<ApiResponse<bool>> VerifyOTPAsync(string email, string otpCode, string purpose);
         Task<ApiResponse<bool>> ResendOTPAsync(string email, string purpose);
         Task CleanupExpiredOTPsAsync();
+        Task CleanupUsedOTPsAsync();
+
     }
 }

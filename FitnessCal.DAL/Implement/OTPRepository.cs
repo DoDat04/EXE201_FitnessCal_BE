@@ -54,5 +54,17 @@ namespace FitnessCal.DAL.Implement
                     otp.Purpose == purpose && 
                     otp.CreatedAt >= fromTime);
         }
+        public async Task<List<OTP>> GetUsedOTPsAsync()
+        {
+            return await _fitnessCalContext.OTPs
+                .Where(otp => otp.IsUsed == true)
+                .ToListAsync();
+        }
+
+        public void DeleteOTPs(IEnumerable<OTP> otps)
+        {
+            _fitnessCalContext.OTPs.RemoveRange(otps);
+        }
+
     }
 }
