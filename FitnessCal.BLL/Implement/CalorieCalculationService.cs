@@ -63,7 +63,16 @@ public class CalorieCalculationService : ICalorieCalculationService
                 DietRecommendation = dietRecommendation,
                 EstimatedGoalDate = estimatedGoalDate,
                 EstimatedWeeks = estimatedWeeks,
-                GoalNote = goalNote
+                GoalNote = goalNote,
+                Gender = request.Gender,
+                DateOfBirth = request.DateOfBirth,
+                HeightCm = request.HeightCm,
+                WeightKg = request.WeightKg,
+                TargetWeightKg = request.TargetWeightKg,
+                ActivityLevel = request.ActivityLevel,
+                Goal = normalizedGoal,
+                DietType = request.DietType,
+                IntensityLevel = request.IntensityLevel
             };
 
             await SaveCalorieCalculationToDatabase(userId, result, request);
