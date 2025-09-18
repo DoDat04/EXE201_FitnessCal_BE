@@ -17,8 +17,14 @@ namespace FitnessCal.BLL.Implement
 
         public async Task<List<UserSubscriptionResponseDTO>> GetAllUserSubscriptionsAsync()
         {
-            var subscriptions = await _unitOfWork.UserSubscriptions.GetAllAsync(s => s.PaymentStatus == "paid");
-            
+            var subscriptions = await _unitOfWork.UserSubscriptions
+         .GetAllAsync(s => s.PaymentStatus == "paid");
+
+            // Sắp xếp theo StartDate mới nhất trước
+            subscriptions = subscriptions
+                .OrderByDescending(s => s.StartDate)
+                .ToList();
+
             // Lấy tất cả UserIds và PackageIds cần thiết
             var userIds = subscriptions.Select(s => s.UserId).Distinct().ToList();
             var packageIds = subscriptions.Select(s => s.PackageId).Distinct().ToList();
@@ -100,6 +106,13 @@ namespace FitnessCal.BLL.Implement
                 DaysRemaining = daysRemaining,
                 IsUserBanned = user != null ? user.IsActive == 0 : false
             };
+        }
+        public async Task<int> CountUserSubcriptionsInPackageAsync(int packageId)
+        {
+            var subscriptions = await _unitOfWork.UserSubscriptions
+                .GetAllAsync(s => s.PaymentStatus == "paid" && s.PackageId == packageId);
+
+            return subscriptions.Count();
         }
     }
 }

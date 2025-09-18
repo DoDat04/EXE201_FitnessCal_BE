@@ -5,6 +5,7 @@ namespace FitnessCal.BLL.DTO.DashboardDTO.Response
         public decimal TotalRevenue { get; set; }
         public decimal RevenueThisMonth { get; set; }
         public decimal RevenueLastMonth { get; set; }
+        public decimal RevenueThisQuarter { get; set; }
         public double RevenueGrowthPercentage { get; set; }
         
         // YTD YoY

@@ -1,7 +1,8 @@
-﻿using FitnessCal.BLL.Define;
-using FitnessCal.BLL.DTO.UserDTO.Response;
-using FitnessCal.BLL.DTO.DashboardDTO.Response;
+﻿using ClosedXML.Excel;
 using FitnessCal.BLL.Constants;
+using FitnessCal.BLL.Define;
+using FitnessCal.BLL.DTO.DashboardDTO.Response;
+using FitnessCal.BLL.DTO.UserDTO.Response;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 using Microsoft.Extensions.Logging;
@@ -250,6 +251,10 @@ namespace FitnessCal.BLL.Implement
                     .Where(s => s.StartDate >= startOfLastMonth && s.StartDate < startOfThisMonth)
                     .Sum(s => s.PriceAtPurchase);
 
+                var revenueThisQuater = allSubscriptions
+                    .Where(s => s.StartDate >= new DateTime(now.Year, ((now.Month - 1) / 3) * 3 + 1, 1) && s.StartDate < startOfNextMonth)
+                    .Sum(s => s.PriceAtPurchase);
+
                 var revenueGrowthPercentage = revenueLastMonth > 0
                     ? (double)((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100
                     : 0;
@@ -272,6 +277,7 @@ namespace FitnessCal.BLL.Implement
                 {
                     TotalRevenue = totalRevenue,
                     RevenueThisMonth = revenueThisMonth,
+                    RevenueThisQuarter = revenueThisQuater,
                     RevenueLastMonth = revenueLastMonth,
                     RevenueGrowthPercentage = Math.Round(revenueGrowthPercentage, 1),
                     TotalRevenueYTD = totalRevenueYTD,
@@ -285,5 +291,42 @@ namespace FitnessCal.BLL.Implement
                 throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
             }
         }
+
+        public async Task<byte[]> ExportUsersPremiumToExcelAsync()
+        {
+            var users = await _unitOfWork.Users.GetAllAsync(u => u.IsActive == 1 && u.Role == "User");
+
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add("All Users");
+
+                worksheet.Cell(1, 1).Value = "Id";
+                worksheet.Cell(1, 2).Value = "First Name";
+                worksheet.Cell(1, 3).Value = "Last Name";
+                worksheet.Cell(1, 4).Value = "Email";
+                worksheet.Cell(1, 5).Value = "Created Date";
+
+                // Ghi dữ liệu
+                int row = 2;
+                int index = 1;
+                foreach (var user in users)
+                {
+                    worksheet.Cell(row, 1).Value = index++;
+                    worksheet.Cell(row, 2).Value = user.FirstName;
+                    worksheet.Cell(row, 3).Value = user.LastName;
+                    worksheet.Cell(row, 4).Value = user.Email;
+                    worksheet.Cell(row, 5).Value = user.CreatedAt;
+                    row++;
+                }
+
+                // Trả về file Excel dạng byte[]
+                using (var stream = new MemoryStream())
+                {
+                    workbook.SaveAs(stream);
+                    return stream.ToArray();
+                }
+            }
+        }
+
     }
 }

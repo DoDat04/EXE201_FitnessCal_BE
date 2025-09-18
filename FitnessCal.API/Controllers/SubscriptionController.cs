@@ -76,5 +76,28 @@ namespace FitnessCal.API.Controllers
                 });
             }
         }
+        [HttpGet("count/{packageId}")]
+        public async Task<IActionResult> CountUserSubscriptionsInPackage(int packageId)
+        {
+            try
+            {
+                var count = await _subscriptionService.CountUserSubcriptionsInPackageAsync(packageId);
+                return Ok(new
+                {
+                    Success = true,
+                    Message = "Đếm số lượng subscription trong gói thành công",
+                    Data = count
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    Success = false,
+                    Message = "Lỗi server khi đếm số lượng subscription trong gói",
+                    Error = ex.Message
+                });
+            }
+        }
     }
 }

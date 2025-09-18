@@ -118,5 +118,26 @@ namespace FitnessCal.API.Controllers
                 });
             }
         }
+
+        [HttpGet("export-all-user")]
+        public async Task<IActionResult> ExportUsersPremiumToExcel()
+        {
+            try
+            {
+                var fileContent = await _userService.ExportUsersPremiumToExcelAsync();
+                var fileName = $"User_Fitnesscal_{DateTime.Now}.xlsx";
+                return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while exporting users to Excel");
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<string>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = null
+                });
+            }
+        }
     }
 }

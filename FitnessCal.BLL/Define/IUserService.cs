@@ -10,6 +10,8 @@ namespace FitnessCal.BLL.Define
         Task<bool> UnBanUserAsync(Guid userId);
         Task<UserStatisticsDTO> GetUserStatisticsAsync();
 
+        Task<byte[]> ExportUsersPremiumToExcelAsync();
+
         Task<IEnumerable<UserResponseDTO>> GetUsersWithoutMealLogAsync(DateOnly today);
 
         Task<RevenueStatisticsDTO> GetRevenueStatisticsAsync();
