@@ -1,11 +1,14 @@
-using FitnessCal.BLL.Define;
-using FitnessCal.BLL.DTO.FoodDTO.Response;
 using FitnessCal.BLL.Constants;
+using FitnessCal.BLL.Define;
+using FitnessCal.BLL.DTO.CommonDTO;
+using FitnessCal.BLL.DTO.FoodDTO.Request;
+using FitnessCal.BLL.DTO.FoodDTO.Response;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using System.Text;
 using System.Linq;
+using System.Text;
 
 
 namespace FitnessCal.BLL.Implement;
@@ -13,17 +16,23 @@ namespace FitnessCal.BLL.Implement;
 public class FoodService : IFoodService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly Supabase.Client _supabase;
     private readonly ILogger<FoodService> _logger;
     private readonly IGeminiService _geminiService;
     private readonly IFoodRepository _foodRepository;
+    private readonly IConfiguration configuration;
 
     public FoodService(IUnitOfWork unitOfWork, ILogger<FoodService> logger, IGeminiService geminiService,
-        IFoodRepository foodRepository)
+        IFoodRepository foodRepository, IConfiguration configuration)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
         _geminiService = geminiService;
         _foodRepository = foodRepository;
+        var supabaseUrl = configuration["Supabase:Url"];
+        var supabaseKey = configuration["Supabase:Key"];
+
+        _supabase = new Supabase.Client(supabaseUrl!, supabaseKey);
     }
 
     public async Task<SearchFoodPaginationResponseDTO> SearchFoodsAsync(string? searchTerm = null, int page = 1,
@@ -263,6 +272,108 @@ public class FoodService : IFoodService
             normalized = normalized.Replace("  ", " ");
 
         return normalized.Trim();
+    }
+
+    public async Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request, string prompt)
+    {
+        if (request.File == null || request.File.Length == 0)
+        {
+            return new ApiResponse<object>
+            {
+                Success = false,
+                Message = "No file uploaded",
+                Data = null
+            };
+        }
+
+        try
+        {
+            // 1. Upload file lên Supabase
+            var fileName = string.IsNullOrWhiteSpace(request.File.FileName)
+                ? Guid.NewGuid().ToString()
+                : request.File.FileName;
+
+            byte[] fileBytes;
+            await using (var memoryStream = new MemoryStream())
+            {
+                await request.File.CopyToAsync(memoryStream);
+                fileBytes = memoryStream.ToArray();
+            }
+
+            var remotePath = $"fitnesscal-ai-detected/{fileName}";
+            await _supabase.Storage
+                .From("fitnesscal-storage")
+                .Upload(fileBytes, remotePath, onProgress: (_, progress) =>
+                    _logger.LogInformation($"{progress}% uploaded"));
+
+            var publicUrl = _supabase.Storage
+                .From("fitnesscal-storage")
+                .GetPublicUrl(remotePath);
+
+            // 2. Gọi Gemini
+            var response = await _geminiService.GenerateTextFromImageAsync(publicUrl, prompt);
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                return new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Không thể phân tích được món ăn từ ảnh",
+                    Data = null
+                };
+            }
+
+            // 3. Chuẩn hóa tên
+            var foodName = response.Trim().ToLower();
+
+            // 4. Check DB
+            var food = await _unitOfWork.Foods.FirstOrDefaultAsync(f => f.Name.ToLower() == foodName);
+
+            if (food != null)
+            {
+                var foodDto = new FoodResponseDTO
+                {
+                    FoodId = food.FoodId,
+                    Name = food.Name,
+                    Calories = food.Calories,
+                    Carbs = food.Carbs,
+                    Fat = food.Fat,
+                    Protein = food.Protein
+                };
+
+                return new ApiResponse<object>
+                {
+                    Success = true,
+                    Message = $"Đã nhận diện thành công: {food.Name}",
+                    Data = new
+                    {
+                        ImageUrl = publicUrl,
+                        Food = foodDto
+                    }
+                };
+            }
+
+            // 5. Nếu không có trong DB
+            return new ApiResponse<object>
+            {
+                Success = true,
+                Message = "Text generated successfully from image using Gemini API",
+                Data = new
+                {
+                    ImageUrl = publicUrl,
+                    RawText = response
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Upload or detection failed");
+            return new ApiResponse<object>
+            {
+                Success = false,
+                Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                Data = null
+            };
+        }
     }
 
 }

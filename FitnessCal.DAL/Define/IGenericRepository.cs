@@ -7,6 +7,7 @@ namespace FitnessCal.DAL.Define
         Task<IEnumerable<T>> GetAllAsync(
             Expression<Func<T, bool>>? filter = null,
             params Expression<Func<T, object>>[] includes);
+        Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
         Task<T?> GetByIdAsync(object id);
         Task AddAsync(T entity);
         Task UpdateAsync(T entity);

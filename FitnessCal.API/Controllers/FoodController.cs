@@ -5,6 +5,7 @@ using FitnessCal.BLL.DTO.CommonDTO;
 using FitnessCal.BLL.Constants;
 using Microsoft.AspNetCore.Authorization;
 using FitnessCal.BLL.DTO.FoodDTO.Request;
+using FitnessCal.DAL.Define;
 
 namespace FitnessCal.API.Controllers
 {
@@ -17,8 +18,10 @@ namespace FitnessCal.API.Controllers
         private readonly IFoodService _foodService;
         private readonly ILogger<FoodController> _logger;
         private readonly Supabase.Client _supabase;
+        private readonly IGeminiService _geminiService;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public FoodController(IFoodService foodService, ILogger<FoodController> logger, IConfiguration configuration)
+        public FoodController(IFoodService foodService, ILogger<FoodController> logger, IConfiguration configuration, IGeminiService geminiService, IUnitOfWork unitOfWork)
         {
             _foodService = foodService;
             _logger = logger;
@@ -26,6 +29,8 @@ namespace FitnessCal.API.Controllers
             var supabaseKey = configuration["Supabase:Key"];
 
             _supabase = new Supabase.Client(supabaseUrl!, supabaseKey);
+            _geminiService = geminiService;
+            _unitOfWork = unitOfWork;
         }
 
         [HttpPost("upload")]
@@ -145,6 +150,45 @@ namespace FitnessCal.API.Controllers
                     Message = ResponseCodes.Messages.INTERNAL_ERROR,
                     Data = null
                 });
+            }
+        }
+
+        [HttpPost("upload-and-detect")]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<ApiResponse<object>>> UploadAndDetectFood([FromForm] UploadFileRequest request, [FromQuery] string prompt)
+        {
+            if (request.File == null || request.File.Length == 0)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "No file uploaded",
+                    Data = null
+                });
+            }
+
+            try
+            {
+                // gọi xuống service
+                var result = await _foodService.UploadAndDetectFood(request, prompt);
+
+                // Nếu service xử lý thành công thì return 200
+                if (result != null)
+                    return Ok(result);
+
+                // Nếu service báo lỗi nhưng không ném exception → vẫn trả về 200
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Upload or detection failed");
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR,
+                    new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                        Data = null
+                    });
             }
         }
     }

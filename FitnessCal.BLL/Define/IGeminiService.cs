@@ -4,5 +4,6 @@ namespace FitnessCal.BLL.Define
     {
         Task<string> GenerateMealPlanAsync(string prompt);
         Task<string> GenerateFoodsAsync(string prompt);
+        Task<string> GenerateTextFromImageAsync(string imageUrl, string prompt);
     }
 }

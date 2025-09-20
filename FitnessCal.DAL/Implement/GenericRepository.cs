@@ -30,6 +30,11 @@ namespace FitnessCal.DAL.Implement
             return await query.ToListAsync();
         }
 
+        public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _dbSet.FirstOrDefaultAsync(predicate);
+        }
+
         public async Task<T?> GetByIdAsync(object id)
         {
             return await _dbSet.FindAsync(id);
