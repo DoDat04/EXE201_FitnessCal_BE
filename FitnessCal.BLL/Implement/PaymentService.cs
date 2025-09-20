@@ -28,16 +28,47 @@ namespace FitnessCal.BLL.Implement
         {
             await _uow.Payments.CleanupExpiredPendingPaymentsAsync();
 
-            var active = await _uow.UserSubscriptions.GetActivePaidByUserAsync(userId);
-            if (active != null)
-                throw new InvalidOperationException("Bạn đang có gói premium còn hạn. Vui lòng đợi gói hiện tại hết hạn trước khi mua gói mới.");
-
-            if (await _uow.UserSubscriptions.HasPendingByUserAsync(userId))
-                throw new InvalidOperationException("Bạn đang có đơn hàng đang xử lý. Vui lòng hoàn tất thanh toán hoặc đợi đơn hàng được xử lý.");
-
+            // Lấy thông tin gói trước để kiểm tra
             var pkg = await _uow.PremiumPackages.GetByIdAsync(packageId);
             if (pkg == null)
                 throw new InvalidOperationException("Không tìm thấy gói premium. Vui lòng kiểm tra lại thông tin.");
+            
+            // gói Free là trạng thái mặc định)
+            if (pkg.Price == 0)
+                throw new InvalidOperationException("Gói miễn phí không thể mua được. Đây là trạng thái mặc định của tài khoản.");
+
+            var active = await _uow.UserSubscriptions.GetActivePaidByUserAsync(userId);
+            if (active != null)
+            {
+                // Kiểm tra xem gói hiện tại có phải gói Free không (cho người dùng cũ)
+                var currentPackage = await _uow.PremiumPackages.GetByIdAsync(active.PackageId);
+                if (currentPackage != null && currentPackage.Price == 0)
+                {
+                    // Nếu đang có gói Free cũ và muốn mua gói trả phí, cho phép
+                    // Cập nhật gói Free thành failed để có thể mua gói mới
+                    active.PaymentStatus = "failed";
+                    await _uow.UserSubscriptions.UpdateAsync(active);
+                    await _uow.Save();
+                }
+                else
+                {
+                    throw new InvalidOperationException("Bạn đang có gói premium còn hạn. Vui lòng đợi gói hiện tại hết hạn trước khi mua gói mới.");
+                }
+            }
+
+            // Kiểm tra xem có subscription nào với status failed hoặc expired không
+            var inactiveSubscriptions = await _uow.UserSubscriptions.GetAllAsync(s => 
+                s.UserId == userId && 
+                (s.PaymentStatus == "failed" || s.PaymentStatus == "expired"));
+            
+            if (inactiveSubscriptions.Any())
+            {
+                // Nếu có subscription failed/expired, cho phép mua gói mới
+                // Không cần làm gì thêm, chỉ cần cho phép tiếp tục
+            }
+
+            if (await _uow.UserSubscriptions.HasPendingByUserAsync(userId))
+                throw new InvalidOperationException("Bạn đang có đơn hàng đang xử lý. Vui lòng hoàn tất thanh toán hoặc đợi đơn hàng được xử lý.");
 
             var user = await _uow.Users.GetByIdAsync(userId);
             if (user == null)
@@ -53,16 +84,16 @@ namespace FitnessCal.BLL.Implement
                 PriceAtPurchase = pkg.Price,
                 StartDate = start,
                 EndDate = end,
-                PaymentStatus = "pending"
+                PaymentStatus = pkg.Price == 0 ? "paid" : "pending" // Gói miễn phí tự động thành paid
             };
 
             await _uow.UserSubscriptions.AddAsync(sub);
             await _uow.Save();
 
-            // Tạo orderCode trước để sử dụng trong URL
+            // Xử lý gói trả phí
             var orderCode = int.Parse(DateTimeOffset.Now.ToString("ffffff"));
             
-            var durationText = $"{pkg.DurationMonths} tháng";
+            var durationText = GetDurationText(pkg.DurationMonths);
 
             var payosRequest = new CreatePayOSPaymentRequest
             {
@@ -79,7 +110,7 @@ namespace FitnessCal.BLL.Implement
 
             var payosResponse = await _payosService.CreatePaymentLinkAsync(payosRequest);
 
-            var payment = new Payment
+            var paymentPaid = new Payment
             {
                 SubscriptionId = sub.SubscriptionId,
                 UserId = userId,
@@ -88,7 +119,7 @@ namespace FitnessCal.BLL.Implement
                 Status = "pending",
                 CreatedAt = DateTime.UtcNow
             };
-            await _uow.Payments.AddAsync(payment);
+            await _uow.Payments.AddAsync(paymentPaid);
             await _uow.Save();
 
             return new InitPaymentResponse
@@ -362,7 +393,7 @@ namespace FitnessCal.BLL.Implement
 
             var vi = new CultureInfo("vi-VN");
             var amountVnd = string.Format(vi, "{0:C0}", amount);
-            var durationText = durationMonths > 0 ? $"({durationMonths} tháng)" : string.Empty;
+            var durationText = $"({GetDurationText(durationMonths)})";
 
             // Chuyển thời gian UTC sang giờ Việt Nam (UTC+7)
             var createdAtVN = ConvertUtcToVietnamTime(createdAt);
@@ -410,5 +441,19 @@ namespace FitnessCal.BLL.Implement
                 }
             }
         }
+
+        private string GetDurationText(int durationMonths)
+        {
+            if (durationMonths == 0)
+                return "miễn phí";
+            else if (durationMonths == 0.25)
+                return "1 tuần";
+            else if (durationMonths == 1)
+                return "1 tháng";
+            else
+                return $"{durationMonths} tháng";
+        }
+
+
     }
 }

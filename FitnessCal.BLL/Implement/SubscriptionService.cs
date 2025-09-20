@@ -46,26 +46,52 @@ namespace FitnessCal.BLL.Implement
                 .GetAllAsync(s => s.UserId == userId && s.PaymentStatus == "paid");
 
             var userSubscriptions = subscription as UserSubscription[] ?? subscription.ToArray();
+            
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null)
+                throw new KeyNotFoundException("Không tìm thấy thông tin người dùng.");
+
+            // Nếu không có subscription nào, trả về trạng thái Free mặc định
             if (subscription == null || !userSubscriptions.Any())
-                throw new KeyNotFoundException("Không tìm thấy subscription cho người dùng đã cho.");
+            {
+                return new UserSubscriptionResponseDTO
+                {
+                    SubscriptionId = 0,
+                    UserId = userId,
+                    UserName = $"{user.FirstName} {user.LastName}".Trim(),
+                    UserEmail = user.Email ?? "Unknown",
+                    Package = new PackageInfoDTO
+                    {
+                        PackageId = 0,
+                        Name = "Free",
+                        DurationMonths = 0,
+                        Price = 0,
+                        PackageType = "Free"
+                    },
+                    PriceAtPurchase = 0,
+                    StartDate = DateTime.MinValue,
+                    EndDate = DateTime.MaxValue, // Free không có ngày hết hạn
+                    PaymentStatus = "free",
+                    IsActive = true,
+                    DaysRemaining = -1, // -1 có nghĩa là không giới hạn
+                    IsUserBanned = user.IsActive == 0
+                };
+            }
 
             var latestSubscription = userSubscriptions.OrderByDescending(s => s.EndDate).FirstOrDefault();
-            var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (latestSubscription != null)
             {
                 var package = await _unitOfWork.PremiumPackages.GetByIdAsync(latestSubscription.PackageId);
 
-                if (user != null)
+                if (package != null)
                 {
                     var userDict = new Dictionary<Guid, User> { { userId, user } };
-                    if (package != null)
-                    {
-                        var packageDict = new Dictionary<int, PremiumPackage> { { latestSubscription.PackageId, package } };
+                    var packageDict = new Dictionary<int, PremiumPackage> { { latestSubscription.PackageId, package } };
 
-                        return MapToResponseDTO(latestSubscription, userDict, packageDict);
-                    }
+                    return MapToResponseDTO(latestSubscription, userDict, packageDict);
                 }
             }
+            
             throw new KeyNotFoundException("Không tìm thấy subscription cho người dùng đã cho.");
         }
 

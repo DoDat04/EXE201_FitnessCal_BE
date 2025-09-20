@@ -18,8 +18,10 @@ namespace FitnessCal.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+            // Chỉ trả về các gói trả phí, không bao gồm gói Free
             var packages = await _uow.PremiumPackages.GetAllAsync();
-            return Ok(packages);
+            var paidPackages = packages.Where(p => p.Price > 0).ToList();
+            return Ok(paidPackages);
         }
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdatePremiumPackageRequest updatedPackage)
