@@ -43,6 +43,10 @@ public partial class FitnessCalContext : DbContext
 
     public virtual DbSet<OTP> OTPs { get; set; }
 
+    public virtual DbSet<Activity> Activities { get; set; }
+
+    public virtual DbSet<UserActivity> UserActivities { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Food>(entity =>
@@ -605,6 +609,76 @@ public partial class FitnessCalContext : DbContext
             entity.HasIndex(e => new { e.UserId, e.FoodId })
                 .IsUnique()
                 .HasDatabaseName("favorite_foods_user_food_unique");
+        });
+
+        modelBuilder.Entity<Activity>(entity =>
+        {
+            entity.ToTable("activities");
+
+            entity.HasKey(e => e.ActivityId).HasName("activities_pkey");
+
+            entity.Property(e => e.ActivityId)
+                .HasColumnName("activityid")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasColumnName("name")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.DurationMinutes)
+                .IsRequired()
+                .HasColumnName("durationminutes")
+                .HasColumnType("integer");
+
+            entity.Property(e => e.CaloriesBurned)
+                .IsRequired()
+                .HasColumnName("caloriesburned")
+                .HasColumnType("integer");
+        });
+
+        modelBuilder.Entity<UserActivity>(entity =>
+        {
+            entity.ToTable("useractivities");
+
+            entity.HasKey(e => e.UserActivityId).HasName("user_activities_pkey");
+
+            entity.Property(e => e.UserActivityId)
+                .HasColumnName("useractivityid")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .IsRequired()
+                .HasColumnName("userid")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.ActivityId)
+                .IsRequired()
+                .HasColumnName("activityid")
+                .HasColumnType("integer");
+
+            entity.Property(e => e.ActivityDate)
+                .IsRequired()
+                .HasColumnName("activitydate")
+                .HasColumnType("date");
+
+            entity.Property(e => e.DurationMinutes)
+                .IsRequired()
+                .HasColumnName("durationminutes")
+                .HasColumnType("integer");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("user_activities_user_id_fkey");
+
+            entity.HasOne(d => d.Activity).WithMany(p => p.UserActivities)
+                .HasForeignKey(d => d.ActivityId)
+                .HasConstraintName("user_activities_activityid_fkey");
+
+            // Unique constraint để tránh duplicate activity cho cùng 1 user và ngày
+            entity.HasIndex(e => new { e.UserId, e.ActivityId, e.ActivityDate })
+                .IsUnique()
+                .HasDatabaseName("user_activities_user_activity_date_unique");
         });
 
         OnModelCreatingPartial(modelBuilder);

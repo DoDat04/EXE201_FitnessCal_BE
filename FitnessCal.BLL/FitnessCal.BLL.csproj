@@ -23,6 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="DTO\ActivityDTO\Request\" />
+    <Folder Include="DTO\UserActivityDTO\" />
     <Folder Include="DTO\UserMealItemDTO\Response\" />
     <Folder Include="DTO\UserMealLogDTO\Response\" />
   </ItemGroup>

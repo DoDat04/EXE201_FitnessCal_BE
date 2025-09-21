@@ -15,8 +15,9 @@ namespace FitnessCal.BLL.Implement
         private readonly IFoodRepository _foodRepository;
         private readonly IGeminiService _geminiService;
         private readonly ILogger<MealPlanningService> _logger;
-        private readonly IAllergyService _allergyService;
-        private readonly IFavoriteFoodService _favoriteFoodService;
+    private readonly IAllergyService _allergyService;
+    private readonly IFavoriteFoodService _favoriteFoodService;
+    private readonly IUserActivityService _userActivityService;
 
         private readonly IUserHealthRepository _userHealthRepository;
         private readonly IUserMealLogRepository _userMealLogRepository;
@@ -30,7 +31,8 @@ namespace FitnessCal.BLL.Implement
             IUserMealItemRepository userMealItemRepository,
             ILogger<MealPlanningService> logger,
             IAllergyService allergyService,
-            IFavoriteFoodService favoriteFoodService)
+            IFavoriteFoodService favoriteFoodService,
+            IUserActivityService userActivityService)
         {
             _foodRepository = foodRepository;
             _userHealthRepository = userHealthRepository;
@@ -40,6 +42,7 @@ namespace FitnessCal.BLL.Implement
             _logger = logger;
             _allergyService = allergyService;
             _favoriteFoodService = favoriteFoodService;
+            _userActivityService = userActivityService;
         }
 
         public async Task<MealPlanningResponseDTO> GenerateMealPlanAsync(Guid userId)
@@ -57,7 +60,18 @@ namespace FitnessCal.BLL.Implement
                 }
 
                 var dailyCalories = userHealth.DailyCalories.Value;
-                var mealCount = DecideMealCount(dailyCalories);
+                
+                // Lấy tổng calories đốt cháy từ activities trong ngày
+                var today = DateOnly.FromDateTime(DateTime.Today);
+                var activityCalories = await _userActivityService.GetTotalCaloriesBurnedAsync(userId, today);
+                
+                // Cộng thêm calories từ activities vào target calories
+                var adjustedDailyCalories = dailyCalories + activityCalories;
+                
+                _logger.LogInformation("Daily calories calculation for user {UserId}: Base={BaseCalories}, Activity={ActivityCalories}, Total={TotalCalories}", 
+                    userId, dailyCalories, activityCalories, adjustedDailyCalories);
+                
+                var mealCount = DecideMealCount(adjustedDailyCalories);
 
                 // 3. Lấy danh sách allergies của user
                 List<string> allergyNames = new List<string>();
@@ -88,7 +102,7 @@ namespace FitnessCal.BLL.Implement
                 }
 
                 // 5. Tạo prompt cho Gemini
-                var prompt = GeneratePrompt(availableFoods.ToList(), allergyNames, favoriteFoodNames, userHealth, mealCount, dailyCalories);
+                var prompt = GeneratePrompt(availableFoods.ToList(), allergyNames, favoriteFoodNames, userHealth, mealCount, adjustedDailyCalories);
                 
                 // 5. Gọi Gemini API
                 var geminiResponse = await _geminiService.GenerateMealPlanAsync(prompt);
@@ -97,7 +111,7 @@ namespace FitnessCal.BLL.Implement
                 var mealPlan = ParseGeminiResponse(geminiResponse, availableFoods.ToList(), allergyNames);
                 
                 // 7. Tính toán và validate
-                mealPlan = CalculateAndValidateNutrition(mealPlan, dailyCalories, allergyNames);
+                mealPlan = CalculateAndValidateNutrition(mealPlan, adjustedDailyCalories, allergyNames);
                 
                 // 7. Lưu meal plan vào database
                 await SaveMealPlanToDatabase(userId, mealPlan);
@@ -109,10 +123,10 @@ namespace FitnessCal.BLL.Implement
                     GeneratedDate = DateTime.UtcNow,
                     DailyTarget = new NutritionTargetDTO
                     {
-                        TotalCalories = dailyCalories,
-                        TotalProtein = MacroCalculationHelper.CalculateTargetProtein(dailyCalories),
-                        TotalCarbs = MacroCalculationHelper.CalculateTargetCarbs(dailyCalories),
-                        TotalFat = MacroCalculationHelper.CalculateTargetFat(dailyCalories)
+                        TotalCalories = adjustedDailyCalories,
+                        TotalProtein = MacroCalculationHelper.CalculateTargetProtein(adjustedDailyCalories),
+                        TotalCarbs = MacroCalculationHelper.CalculateTargetCarbs(adjustedDailyCalories),
+                        TotalFat = MacroCalculationHelper.CalculateTargetFat(adjustedDailyCalories)
                     },
                     ActualDaily = CalculateDailyNutrition(mealPlan.Meals),
                     Meals = mealPlan.Meals
