@@ -10,7 +10,7 @@ namespace FitnessCal.Domain
     {
         public int PackageId { get; set; }
         public string Name { get; set; } = null!;
-        public int DurationMonths { get; set; }
+        public decimal DurationMonths { get; set; }
         public decimal Price { get; set; }
 
         public virtual ICollection<UserSubscription> UserSubscriptions { get; set; } = new List<UserSubscription>();

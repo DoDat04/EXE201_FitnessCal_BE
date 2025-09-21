@@ -22,7 +22,7 @@ namespace FitnessCal.BLL.DTO.SubscriptionDTO.Response
     {
         public int PackageId { get; set; }
         public string Name { get; set; } = null!;
-        public int DurationMonths { get; set; }
+        public decimal DurationMonths { get; set; }
         public decimal Price { get; set; }
         public string PackageType { get; set; } = null!; // "Free", "Premium"
     }

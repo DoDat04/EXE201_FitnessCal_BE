@@ -392,7 +392,8 @@ public partial class FitnessCalContext : DbContext
                 .HasColumnType("character varying");
 
             entity.Property(e => e.DurationMonths)
-                .HasColumnName("duration_months");
+                .HasColumnName("duration_months")
+                .HasColumnType("numeric(5,2)");
 
             entity.Property(e => e.Price)
                 .HasColumnName("price")

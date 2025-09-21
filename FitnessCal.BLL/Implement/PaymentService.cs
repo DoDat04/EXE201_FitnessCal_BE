@@ -75,7 +75,7 @@ namespace FitnessCal.BLL.Implement
                 throw new InvalidOperationException("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.");
 
             var start = DateTime.UtcNow.Date;
-            var end = start.AddMonths(pkg.DurationMonths);
+            var end = CalculateEndDate(start, pkg.DurationMonths);
 
             var sub = new UserSubscription
             {
@@ -359,7 +359,7 @@ namespace FitnessCal.BLL.Implement
             int orderCode,
             decimal amount,
             string packageName,
-            int durationMonths,
+            decimal durationMonths,
             DateTime createdAt,
             DateTime paidAt,
             DateTime startDate,
@@ -442,13 +442,34 @@ namespace FitnessCal.BLL.Implement
             }
         }
 
-        private string GetDurationText(int durationMonths)
+        private DateTime CalculateEndDate(DateTime startDate, decimal durationMonths)
         {
-            if (durationMonths == 0)
+            if (durationMonths == 0.25m)
+            {
+                // 1 tuần = 7 ngày
+                return startDate.AddDays(7);
+            }
+            else if (durationMonths == 0.5m)
+            {
+                // 2 tuần = 14 ngày
+                return startDate.AddDays(14);
+            }
+            else
+            {
+                // Các gói tháng 
+                return startDate.AddMonths((int)durationMonths);
+            }
+        }
+
+        private string GetDurationText(decimal durationMonths)
+        {
+            if (durationMonths == 0m)
                 return "miễn phí";
-            else if (durationMonths == 0.25)
+            else if (durationMonths == 0.25m)
                 return "1 tuần";
-            else if (durationMonths == 1)
+            else if (durationMonths == 0.5m)
+                return "2 tuần";
+            else if (durationMonths == 1m)
                 return "1 tháng";
             else
                 return $"{durationMonths} tháng";
