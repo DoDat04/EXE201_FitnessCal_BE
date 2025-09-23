@@ -5,9 +5,11 @@ using FitnessCal.BLL.DTO.FoodDTO.Request;
 using FitnessCal.BLL.DTO.FoodDTO.Response;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 
 
@@ -19,20 +21,24 @@ public class FoodService : IFoodService
     private readonly Supabase.Client _supabase;
     private readonly ILogger<FoodService> _logger;
     private readonly IGeminiService _geminiService;
+    private readonly IChatMessageRepository _chatMessageRepository;
     private readonly IFoodRepository _foodRepository;
     private readonly IConfiguration configuration;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public FoodService(IUnitOfWork unitOfWork, ILogger<FoodService> logger, IGeminiService geminiService,
-        IFoodRepository foodRepository, IConfiguration configuration)
+        IFoodRepository foodRepository, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IChatMessageRepository chatMessageRepository)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
         _geminiService = geminiService;
         _foodRepository = foodRepository;
+        _httpContextAccessor = httpContextAccessor;
         var supabaseUrl = configuration["Supabase:Url"];
         var supabaseKey = configuration["Supabase:Key"];
 
         _supabase = new Supabase.Client(supabaseUrl!, supabaseKey);
+        _chatMessageRepository = chatMessageRepository;
     }
 
     public async Task<SearchFoodPaginationResponseDTO> SearchFoodsAsync(string? searchTerm = null, int page = 1,
@@ -145,6 +151,7 @@ public class FoodService : IFoodService
 
     public async Task<string> GenerateFoodsInformationAsync(string userPrompt)
     {
+        Guid userId = GetCurrentUserId();
         var normalizedPrompt = TransformUserQuery(userPrompt);
 
         // 1. Tách input thành nhiều từ khóa nếu có dấu phẩy hoặc "và"
@@ -211,6 +218,20 @@ public class FoodService : IFoodService
         if (string.IsNullOrWhiteSpace(aiResponse))
             throw new InvalidOperationException("Gemini API không trả về dữ liệu hợp lệ.");
 
+        var dailyId = await _chatMessageRepository.GetNextDailyIdAsync(userId);
+
+        // 7. Lưu lịch sử chat
+        var chatMessage = new ChatMessage
+        {
+            UserId = userId,
+            DailyId = dailyId,
+            UserPrompt = userPrompt,
+            AiResponse = aiResponse,
+            PromptTime = DateTime.UtcNow,
+            ResponseTime = DateTime.UtcNow
+        };
+        await _chatMessageRepository.AddAsync(chatMessage);
+
         return aiResponse;
     }
 
@@ -272,6 +293,14 @@ public class FoodService : IFoodService
             normalized = normalized.Replace("  ", " ");
 
         return normalized.Trim();
+    }
+    private Guid GetCurrentUserId()
+    {
+        var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null)
+            throw new UnauthorizedAccessException("UserId không tồn tại trong token");
+
+        return Guid.Parse(userIdClaim.Value);
     }
 
     public async Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request, string prompt)

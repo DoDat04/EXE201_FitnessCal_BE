@@ -1,4 +1,4 @@
-using FitnessCal.DAL.Define;
+﻿using FitnessCal.DAL.Define;
 using FitnessCal.DAL;
 using FitnessCal.BLL.Define;
 using Microsoft.EntityFrameworkCore;
@@ -8,9 +8,21 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using FitnessCal.BLL.DTO.CommonDTO;
+using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"];
+var mongoDatabaseName = builder.Configuration["MongoDB:DatabaseName"];
+
+builder.Services.AddSingleton<IMongoClient>(sp =>
+    new MongoClient(mongoConnectionString));
+
+builder.Services.AddScoped<IMongoDatabase>(sp =>
+{
+    var client = sp.GetRequiredService<IMongoClient>();
+    return client.GetDatabase(mongoDatabaseName);
+});
 
 builder.Services.AddDbContext<FitnessCalContext>(options =>
 {
@@ -90,6 +102,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

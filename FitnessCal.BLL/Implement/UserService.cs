@@ -328,5 +328,26 @@ namespace FitnessCal.BLL.Implement
             }
         }
 
+        public Task<UserResponseDTO?> GetUserByIdAsync(Guid userId)
+        {
+            var user = _unitOfWork.Users
+                .FindAsync(u => u.UserId == userId && u.Role == "User")
+                .ContinueWith(t =>
+                {
+                    var u = t.Result;
+                    if (u == null) return null;
+                    return new UserResponseDTO
+                    {
+                        UserId = u.UserId,
+                        FirstName = u.FirstName,
+                        LastName = u.LastName,
+                        Email = u.Email,
+                        Role = u.Role,
+                        IsActive = u.IsActive,
+                        CreatedAt = u.CreatedAt
+                    };
+                });
+            return user;
+        }
     }
 }
