@@ -17,15 +17,25 @@ namespace FitnessCal.DAL.Implement
         {
             return await _fitnessCalContext.Allergies
                 .Include(a => a.Food)
+                .Include(a => a.Dish)
                 .Where(a => a.UserId == userId)
-                .OrderBy(a => a.Food.Name)
+                .OrderBy(a => a.Food != null ? a.Food.Name : a.Dish!.Name)
                 .ToListAsync();
         }
 
-        public async Task<bool> ExistsAsync(Guid userId, int foodId)
+        public async Task<bool> ExistsAsync(Guid userId, int? foodId, int? dishId)
         {
-            return await _fitnessCalContext.Allergies
-                .AnyAsync(a => a.UserId == userId && a.FoodId == foodId);
+            if (foodId.HasValue && !dishId.HasValue)
+            {
+                return await _fitnessCalContext.Allergies
+                    .AnyAsync(a => a.UserId == userId && a.FoodId == foodId && a.DishId == null);
+            }
+            if (dishId.HasValue && !foodId.HasValue)
+            {
+                return await _fitnessCalContext.Allergies
+                    .AnyAsync(a => a.UserId == userId && a.DishId == dishId && a.FoodId == null);
+            }
+            return true;
         }
     }
 }

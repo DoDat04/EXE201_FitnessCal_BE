@@ -553,6 +553,9 @@ public partial class FitnessCalContext : DbContext
             entity.Property(e => e.FoodId)
                 .HasColumnName("food_id");
 
+            entity.Property(e => e.DishId)
+                .HasColumnName("dish_id");
+
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("created_at")
@@ -570,6 +573,22 @@ public partial class FitnessCalContext : DbContext
             entity.HasOne(d => d.Food).WithMany()
                 .HasForeignKey(d => d.FoodId)
                 .HasConstraintName("allergies_food_id_fkey");
+
+            entity.HasOne(d => d.Dish).WithMany()
+                .HasForeignKey(d => d.DishId)
+                .HasConstraintName("allergies_dish_id_fkey");
+
+            entity.ToTable(t => t.HasCheckConstraint("ck_allergy_one_of", "(food_id IS NOT NULL AND dish_id IS NULL) OR (food_id IS NULL AND dish_id IS NOT NULL)"));
+
+            entity.HasIndex(e => new { e.UserId, e.FoodId })
+                .IsUnique()
+                .HasFilter("food_id IS NOT NULL")
+                .HasDatabaseName("allergies_user_food_unique");
+
+            entity.HasIndex(e => new { e.UserId, e.DishId })
+                .IsUnique()
+                .HasFilter("dish_id IS NOT NULL")
+                .HasDatabaseName("allergies_user_dish_unique");
         });
 
         modelBuilder.Entity<FavoriteFood>(entity =>
@@ -588,7 +607,6 @@ public partial class FitnessCalContext : DbContext
                 .HasColumnType("uuid");
 
             entity.Property(e => e.FoodId)
-                .IsRequired()
                 .HasColumnName("food_id");
 
             entity.Property(e => e.DishId)

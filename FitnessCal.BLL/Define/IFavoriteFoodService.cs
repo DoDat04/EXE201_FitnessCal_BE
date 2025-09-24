@@ -9,5 +9,6 @@ namespace FitnessCal.BLL.Define
         Task<IEnumerable<FavoriteFoodResponseDTO>> GetUserFavoriteFoodsAsync(Guid userId);
         Task<DeleteFavoriteFoodResponseDTO> DeleteFavoriteFoodAsync(int favoriteFoodId, Guid userId);
         Task<IEnumerable<int>> GetUserFavoriteFoodIdsAsync(Guid userId);
+        Task<IEnumerable<int>> GetUserFavoriteDishIdsAsync(Guid userId);
     }
 }

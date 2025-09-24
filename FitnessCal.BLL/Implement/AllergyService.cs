@@ -20,16 +20,24 @@ namespace FitnessCal.BLL.Implement
 
         public async Task<CreateAllergyResponseDTO> CreateAllergyAsync(Guid userId, CreateAllergyDTO dto)
         {
-            var exists = await _unitOfWork.Allergies.ExistsAsync(userId, dto.FoodId);
+            var hasFood = dto.FoodId.HasValue;
+            var hasDish = dto.DishId.HasValue;
+            if (hasFood == hasDish)
+            {
+                throw new ArgumentException("Vui lòng chọn đúng 1 mục dị ứng: food hoặc dish");
+            }
+
+            var exists = await _unitOfWork.Allergies.ExistsAsync(userId, dto.FoodId, dto.DishId);
             if (exists)
             {
-                throw new ArgumentException($"Thực phẩm dị ứng này đã tồn tại");
+                throw new ArgumentException("Mục dị ứng này đã tồn tại");
             }
 
             var allergy = new Allergy
             {
                 UserId = userId,
                 FoodId = dto.FoodId,
+                DishId = dto.DishId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -40,7 +48,7 @@ namespace FitnessCal.BLL.Implement
             return new CreateAllergyResponseDTO
             {
                 AllergyId = allergy.AllergyId,
-                Message = "Thực phẩm dị ứng tạo thành công"
+                Message = "Tạo dị ứng thành công"
             };
         }
 
@@ -53,7 +61,9 @@ namespace FitnessCal.BLL.Implement
                 AllergyId = a.AllergyId,
                 UserId = a.UserId,
                 FoodId = a.FoodId,
-                FoodName = a.Food.Name,
+                FoodName = a.Food != null ? a.Food.Name : null,
+                DishId = a.DishId,
+                DishName = a.Dish != null ? a.Dish.Name : null,
                 CreatedAt = a.CreatedAt,
                 UpdatedAt = a.UpdatedAt
             });
@@ -73,13 +83,21 @@ namespace FitnessCal.BLL.Implement
                 throw new UnauthorizedAccessException("Bạn chỉ có thể cập nhật thực phẩm dị ứng của bạn");
             }
 
-            var exists = await _unitOfWork.Allergies.ExistsAsync(allergy.UserId, dto.FoodId);
-            if (exists && allergy.FoodId != dto.FoodId)
+            var hasFood = dto.FoodId.HasValue;
+            var hasDish = dto.DishId.HasValue;
+            if (hasFood == hasDish)
             {
-                throw new ArgumentException($"Thực phẩm dị ứng này đã tồn tại");
+                throw new ArgumentException("Vui lòng chọn đúng 1 mục dị ứng: food hoặc dish");
+            }
+
+            var exists = await _unitOfWork.Allergies.ExistsAsync(allergy.UserId, dto.FoodId, dto.DishId);
+            if (exists && (allergy.FoodId != dto.FoodId || allergy.DishId != dto.DishId))
+            {
+                throw new ArgumentException("Mục dị ứng này đã tồn tại");
             }
 
             allergy.FoodId = dto.FoodId;
+            allergy.DishId = dto.DishId;
             allergy.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.Allergies.UpdateAsync(allergy);
@@ -117,7 +135,9 @@ namespace FitnessCal.BLL.Implement
         public async Task<IEnumerable<int>> GetUserAllergyFoodIdsAsync(Guid userId)
         {
             var allergies = await _unitOfWork.Allergies.GetByUserIdAsync(userId);
-            return allergies.Select(a => a.FoodId);
+            return allergies
+                .Where(a => a.FoodId.HasValue)
+                .Select(a => a.FoodId!.Value);
         }
     }
 }

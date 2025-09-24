@@ -95,5 +95,11 @@ namespace FitnessCal.BLL.Implement
             var favoriteFoodIds = await _unitOfWork.FavoriteFoods.GetByUserIdAsync(userId);
             return favoriteFoodIds.Where(f => f.FoodId.HasValue).Select(f => f.FoodId!.Value);
         }
+
+        public async Task<IEnumerable<int>> GetUserFavoriteDishIdsAsync(Guid userId)
+        {
+            var favoriteDishIds = await _unitOfWork.FavoriteFoods.GetByUserIdAsync(userId);
+            return favoriteDishIds.Where(f => f.DishId.HasValue).Select(f => f.DishId!.Value);
+        }
     }
 }
