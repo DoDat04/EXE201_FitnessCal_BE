@@ -551,7 +551,6 @@ public partial class FitnessCalContext : DbContext
                 .HasColumnType("uuid");
 
             entity.Property(e => e.FoodId)
-                .IsRequired()
                 .HasColumnName("food_id");
 
             entity.Property(e => e.CreatedAt)
@@ -592,6 +591,9 @@ public partial class FitnessCalContext : DbContext
                 .IsRequired()
                 .HasColumnName("food_id");
 
+            entity.Property(e => e.DishId)
+                .HasColumnName("dish_id");
+
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("now()")
                 .HasColumnName("created_at")
@@ -605,10 +607,23 @@ public partial class FitnessCalContext : DbContext
                 .HasForeignKey(d => d.FoodId)
                 .HasConstraintName("favorite_foods_food_id_fkey");
 
-            // Unique constraint để tránh duplicate favorite cho cùng 1 user và food
+            entity.HasOne(d => d.PredefinedDish).WithMany()
+                .HasForeignKey(d => d.DishId)
+                .HasConstraintName("favorite_foods_dish_id_fkey");
+
+            // Ràng buộc one-of: chỉ 1 trong 2 có giá trị
+            entity.ToTable(t => t.HasCheckConstraint("ck_fav_one_of", "(food_id IS NOT NULL AND dish_id IS NULL) OR (food_id IS NULL AND dish_id IS NOT NULL)"));
+
+            // Unique theo từng loại
             entity.HasIndex(e => new { e.UserId, e.FoodId })
                 .IsUnique()
+                .HasFilter("food_id IS NOT NULL")
                 .HasDatabaseName("favorite_foods_user_food_unique");
+
+            entity.HasIndex(e => new { e.UserId, e.DishId })
+                .IsUnique()
+                .HasFilter("dish_id IS NOT NULL")
+                .HasDatabaseName("favorite_foods_user_dish_unique");
         });
 
         modelBuilder.Entity<Activity>(entity =>

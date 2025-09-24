@@ -21,16 +21,24 @@ namespace FitnessCal.BLL.Implement
 
         public async Task<CreateFavoriteFoodResponseDTO> CreateFavoriteFoodAsync(Guid userId, CreateFavoriteFoodDTO dto)
         {
-            var exists = await _unitOfWork.FavoriteFoods.ExistsAsync(userId, dto.FoodId);
+            var hasFood = dto.FoodId.HasValue;
+            var hasDish = dto.DishId.HasValue;
+            if (hasFood == hasDish)
+            {
+                throw new ArgumentException("Vui lòng chọn đúng 1 mục: food hoặc dish");
+            }
+
+            var exists = await _unitOfWork.FavoriteFoods.ExistsAsync(userId, dto.FoodId, dto.DishId);
             if (exists)
             {
-                throw new ArgumentException($"Thực phẩm yêu thích này đã tồn tại");
+                throw new ArgumentException("Mục yêu thích này đã tồn tại");
             }
 
             var favoriteFood = new FavoriteFood
             {
                 UserId = userId,
                 FoodId = dto.FoodId,
+                DishId = dto.DishId,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -40,7 +48,7 @@ namespace FitnessCal.BLL.Implement
             return new CreateFavoriteFoodResponseDTO
             {
                 FavoriteId = favoriteFood.FavoriteId,
-                Message = "Thực phẩm yêu thích tạo thành công"
+                Message = "Thêm vào yêu thích thành công"
             };
         }
 
@@ -53,7 +61,9 @@ namespace FitnessCal.BLL.Implement
                 FavoriteId = f.FavoriteId,
                 UserId = f.UserId,
                 FoodId = f.FoodId,
-                FoodName = f.Food.Name,
+                FoodName = f.Food != null ? f.Food.Name : null,
+                DishId = f.DishId,
+                DishName = f.PredefinedDish != null ? f.PredefinedDish.Name : null,
                 CreatedAt = f.CreatedAt
             });
         }
@@ -83,7 +93,7 @@ namespace FitnessCal.BLL.Implement
         public async Task<IEnumerable<int>> GetUserFavoriteFoodIdsAsync(Guid userId)
         {
             var favoriteFoodIds = await _unitOfWork.FavoriteFoods.GetByUserIdAsync(userId);
-            return favoriteFoodIds.Select(f => f.FoodId);
+            return favoriteFoodIds.Where(f => f.FoodId.HasValue).Select(f => f.FoodId!.Value);
         }
     }
 }
