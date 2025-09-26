@@ -25,6 +25,8 @@ namespace FitnessCal.BLL.DTO.UserMealLogDTO.Response
     public class MealItemDTO
     {
         public int ItemId { get; set; }
+        public int? FoodId { get; set; }
+        public int? DishId { get; set; }
         public string FoodName { get; set; } = string.Empty;
         public double Quantity { get; set; }
         public double Calories { get; set; }

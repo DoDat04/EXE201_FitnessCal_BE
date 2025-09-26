@@ -205,6 +205,8 @@ namespace FitnessCal.BLL.Implement
                             items.Add(new MealItemDTO
                             {
                                 ItemId = item.ItemId,
+                                FoodId = item.FoodId,
+                                DishId = item.DishId,
                                 FoodName = foodName,
                                 Quantity = item.Quantity,
                                 Calories = item.Calories ?? 0
