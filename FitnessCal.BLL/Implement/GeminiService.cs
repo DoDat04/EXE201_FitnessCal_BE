@@ -20,7 +20,7 @@ namespace FitnessCal.BLL.Implement
             }
 
             _api = new GoogleAI(apiKey: apiKey);
-            _model = _api.GenerativeModel("gemini-1.5-pro");
+            _model = _api.GenerativeModel("gemini-2.5-flash");
             _logger = logger;
         }
 

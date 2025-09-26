@@ -628,17 +628,19 @@ Trả về JSON với format chính xác (quantity là bội số 100g):
                 }
             }
             
-            if (actualDaily.TotalCalories > targetCalories)
+			if (actualDaily.TotalCalories > targetCalories)
             {
-                // Scale down toàn bộ để actualDaily = targetCalories
-                var scaleDown = RoundToDecimal(targetCalories / actualDaily.TotalCalories, 1);
+				// Scale down toàn bộ để actualDaily nằm trong băng mục tiêu (target + 100)
+				var maxTarget = RoundToDecimal(targetCalories + dailyTolerance, 1);
+				var scaleDown = RoundToDecimal(maxTarget / actualDaily.TotalCalories, 2);
                 foreach (var meal in mealPlan.Meals)
                 {
                     foreach (var food in meal.Foods)
                     {
                         food.Quantity *= scaleDown;
-                        food.Quantity = Math.Round(food.Quantity * 10, MidpointRounding.AwayFromZero) / 10.0;
-                        if (food.Quantity < 0.3) food.Quantity = 0.3;
+						food.Quantity = Math.Round(food.Quantity * 10, MidpointRounding.AwayFromZero) / 10.0;
+						// Cho phép giảm thấp hơn để đạt dải mục tiêu ngày
+						if (food.Quantity < 0.2) food.Quantity = 0.2;
 
                         var factor = food.Quantity;
                         food.CalculatedNutrition = new NutritionInfoDTO
@@ -659,11 +661,11 @@ Trả về JSON với format chính xác (quantity là bội số 100g):
                     };
                 }
             }
-            else if (actualDaily.TotalCalories < (targetCalories - dailyTolerance))
+			else if (actualDaily.TotalCalories < (targetCalories - dailyTolerance))
             {
                 // Scale up nhẹ để đạt tối thiểu (targetCalories - 100)
-                var minTarget = RoundToDecimal(targetCalories - dailyTolerance, 1);
-                var scaleUp = RoundToDecimal(minTarget / actualDaily.TotalCalories, 1);
+				var minTarget = RoundToDecimal(targetCalories - dailyTolerance, 1);
+				var scaleUp = RoundToDecimal(minTarget / actualDaily.TotalCalories, 2);
                 foreach (var meal in mealPlan.Meals)
                 {
                     foreach (var food in meal.Foods)
