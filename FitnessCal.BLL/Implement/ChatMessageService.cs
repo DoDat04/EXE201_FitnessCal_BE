@@ -10,22 +10,26 @@ public class ChatMessageService : IChatMessageService
     {
         _chatMessageRepository = chatMessageRepository;
     }
-
-    public async Task<IEnumerable<HistoryChatResponse>> GetChatHistory(Guid userId)
+    public async Task<IEnumerable<HistoryChatResponse>> GetChatHistoryById(Guid userId, DateTime? dateTime = null)
     {
-        var chatMessages = await _chatMessageRepository.GetByUserIdAsync(userId);
+        // Nếu không truyền ngày → mặc định lấy hôm nay
+        var targetDate = (dateTime ?? DateTime.UtcNow).Date;
 
-        return chatMessages
-            .OrderBy(c => c.PromptTime)
-            .Select(c => new HistoryChatResponse
+        var chatMessage = await _chatMessageRepository.GetByUserAndDateAsync(userId, targetDate);
+
+        if (chatMessage == null)
+            return Enumerable.Empty<HistoryChatResponse>();
+
+        // Map từng DailyMessage sang DTO
+        return chatMessage.DailyMessages
+            .OrderBy(m => m.DailyId)
+            .Select(m => new HistoryChatResponse
             {
-                Id = c.Id,
-                UserId = c.UserId,
-                DailyId = c.DailyId,
-                UserPrompt = c.UserPrompt,
-                AiResponse = c.AiResponse,
-                PromptTime = c.PromptTime,
-                ResponseTime = c.ResponseTime
+                DailyId = m.DailyId,
+                UserPrompt = m.UserPrompt,
+                AiResponse = m.AiResponse,
+                PromptTime = m.PromptTime,
+                ResponseTime = m.ResponseTime
             })
             .ToList();
     }

@@ -148,21 +148,20 @@ public class FoodService : IFoodService
             throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
         }
     }
-
     public async Task<string> GenerateFoodsInformationAsync(string userPrompt)
     {
         Guid userId = GetCurrentUserId();
         var normalizedPrompt = TransformUserQuery(userPrompt);
 
-        // 1. Tách input thành nhiều từ khóa nếu có dấu phẩy hoặc "và"
+        // 1. Parse keywords
         var keywords = normalizedPrompt
             .Split(new[] { ",", " và ", "&" }, StringSplitOptions.RemoveEmptyEntries)
             .Select(k => k.Trim())
             .ToList();
 
-        List<Food> foods = [];
+        List<Food> foods = new();
 
-        // 2. Nếu nhiều keyword → tìm từng cái
+        // 2. Tìm foods
         if (keywords.Count > 1)
         {
             foreach (var key in keywords)
@@ -175,9 +174,7 @@ public class FoodService : IFoodService
         }
         else
         {
-            // 2b. Nếu chỉ có 1 keyword → thử tìm chính xác trước
             var exactFood = await _unitOfWork.Foods.FindAsync(f => f.Name.ToLower() == normalizedPrompt);
-
             if (exactFood != null)
             {
                 foods.Add(exactFood);
@@ -191,13 +188,11 @@ public class FoodService : IFoodService
             }
         }
 
-        // 3. Kiểm tra kết quả
         if (!foods.Any())
             throw new InvalidOperationException("Món ăn không có trong database. Vui lòng thử món khác.");
 
-        // 4. Tạo DTO
         var dtoList = foods
-            .DistinctBy(f => f.FoodId) // tránh trùng nếu search nhiều từ ra cùng 1 kết quả
+            .DistinctBy(f => f.FoodId)
             .Select(f => new FoodResponseDTO
             {
                 FoodId = f.FoodId,
@@ -209,31 +204,44 @@ public class FoodService : IFoodService
             })
             .ToList();
 
-        // 5. Tạo prompt phù hợp
         var prompt = GenerateFoodPrompt(dtoList);
 
-        // 6. Gọi Gemini
         var aiResponse = await _geminiService.GenerateFoodsAsync(prompt);
 
         if (string.IsNullOrWhiteSpace(aiResponse))
             throw new InvalidOperationException("Gemini API không trả về dữ liệu hợp lệ.");
 
-        var dailyId = await _chatMessageRepository.GetNextDailyIdAsync(userId);
+        // 📌 Xác định Id document theo ngày
+        var today = DateTime.UtcNow.Date;
+        var chatMessage = await _chatMessageRepository.GetByUserAndDateAsync(userId, today);
 
-        // 7. Lưu lịch sử chat
-        var chatMessage = new ChatMessage
+        if (chatMessage == null)
         {
-            UserId = userId,
+            chatMessage = new ChatMessage
+            {
+                Id = Guid.NewGuid(),    
+                UserId = userId,
+                ChatDate = today,
+                DailyMessages = new List<DailyMessage>()
+            };
+        }
+
+        int dailyId = chatMessage.DailyMessages.Count + 1;
+
+        chatMessage.DailyMessages.Add(new DailyMessage
+        {
             DailyId = dailyId,
             UserPrompt = userPrompt,
             AiResponse = aiResponse,
             PromptTime = DateTime.UtcNow,
             ResponseTime = DateTime.UtcNow
-        };
-        await _chatMessageRepository.AddAsync(chatMessage);
+        });
+
+        await _chatMessageRepository.UpsertAsync(chatMessage);
 
         return aiResponse;
     }
+
 
     private static string GenerateFoodPrompt(IEnumerable<FoodResponseDTO> foods)
     {

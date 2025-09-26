@@ -14,30 +14,33 @@ namespace FitnessCal.DAL.Implement
             _collection = database.GetCollection<ChatMessage>("ChatMessages");
         }
 
-        public async Task<IEnumerable<ChatMessage>> GetByUserIdAsync(Guid userId)
+        public async Task<ChatMessage?> GetByUserAndDateAsync(Guid userId, DateTime date)
         {
-            var filter = Builders<ChatMessage>.Filter.Eq(c => c.UserId, userId);
-            var messages = await _collection.Find(filter).ToListAsync();
-            return messages;
-        }
-        public async Task<int> GetNextDailyIdAsync(Guid userId)
-        {
-            var today = DateTime.UtcNow.Date;
+            var startOfDayUtc = date.Date.ToUniversalTime();
+            var endOfDayUtc = startOfDayUtc.AddDays(1);
 
             var filter = Builders<ChatMessage>.Filter.And(
-                Builders<ChatMessage>.Filter.Eq(c => c.UserId, userId),
-                Builders<ChatMessage>.Filter.Gte(c => c.PromptTime, today),
-                Builders<ChatMessage>.Filter.Lt(c => c.PromptTime, today.AddDays(1))
+                Builders<ChatMessage>.Filter.Eq(x => x.UserId, userId),
+                Builders<ChatMessage>.Filter.Gte(x => x.ChatDate, startOfDayUtc),
+                Builders<ChatMessage>.Filter.Lt(x => x.ChatDate, endOfDayUtc)
             );
 
-            var sort = Builders<ChatMessage>.Sort.Descending(c => c.DailyId);
+            return await _collection.Find(filter).FirstOrDefaultAsync();
+        }
 
-            var lastMessage = await _collection
-                .Find(filter)
-                .Sort(sort)
-                .FirstOrDefaultAsync();
 
-            return lastMessage == null ? 1 : lastMessage.DailyId + 1;
+        public async Task UpsertAsync(ChatMessage chatMessage)
+        {
+            var filter = Builders<ChatMessage>.Filter.And(
+                Builders<ChatMessage>.Filter.Eq(x => x.UserId, chatMessage.UserId),
+                Builders<ChatMessage>.Filter.Eq(x => x.ChatDate, chatMessage.ChatDate)
+            );
+
+            await _collection.ReplaceOneAsync(
+                filter,
+                chatMessage,
+                new ReplaceOptions { IsUpsert = true }
+            );
         }
 
     }

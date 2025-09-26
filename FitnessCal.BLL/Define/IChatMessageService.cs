@@ -9,6 +9,6 @@ namespace FitnessCal.BLL.Define
 {
     public interface IChatMessageService
     {
-        Task<IEnumerable<HistoryChatResponse>> GetChatHistory(Guid userId);
+        Task<IEnumerable<HistoryChatResponse>> GetChatHistoryById(Guid userId, DateTime? dateTime);
     }
 }

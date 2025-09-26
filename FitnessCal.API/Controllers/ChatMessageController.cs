@@ -1,4 +1,5 @@
 ﻿using FitnessCal.BLL.Define;
+using FitnessCal.BLL.DTO.ChatMessageDTO.Request;
 using FitnessCal.BLL.DTO.ChatMessageDTO.Response;
 using FitnessCal.BLL.DTO.CommonDTO;
 using Microsoft.AspNetCore.Authorization;
@@ -6,22 +7,23 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace FitnessCal.API.Controllers
 {
-    [Route("api/history-message")]
+    [Route("api/chat-message")]
     [ApiController]
     [Authorize]
-    public class HistoryChatController : ControllerBase
+    public class ChatMessageController : ControllerBase
     {
         private readonly IChatMessageService _chatMessageService;
-        public HistoryChatController(IChatMessageService chatMessageService)
+        public ChatMessageController(IChatMessageService chatMessageService)
         {
             _chatMessageService = chatMessageService;
         }
+
         [HttpGet("{userId}")]
-        public async Task<ApiResponse<IEnumerable<HistoryChatResponse>>> GetChatHistory(Guid userId)
+        public async Task<ApiResponse<IEnumerable<HistoryChatResponse>>> GetChatHistoryById(Guid userId, DateTime? dateTime)
         {
             try
             {
-                var response = await _chatMessageService.GetChatHistory(userId);
+                var response = await _chatMessageService.GetChatHistoryById(userId, dateTime);
                 return new ApiResponse<IEnumerable<HistoryChatResponse>>
                 {
                     Success = true,
@@ -39,6 +41,5 @@ namespace FitnessCal.API.Controllers
                 };
             }
         }
-
     }
 }

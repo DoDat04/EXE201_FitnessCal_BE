@@ -9,7 +9,7 @@ namespace FitnessCal.DAL.Define
 {
     public interface IChatMessageRepository : IMongoGenericRepository<ChatMessage>
     {
-        Task<IEnumerable<ChatMessage>> GetByUserIdAsync(Guid userId);
-        Task<int> GetNextDailyIdAsync(Guid userId);
+        Task<ChatMessage?> GetByUserAndDateAsync(Guid userId, DateTime date);
+        Task UpsertAsync(ChatMessage chatMessage);
     }
 }
