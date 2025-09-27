@@ -11,16 +11,18 @@ namespace FitnessCal.BLL.Implement
         private readonly GenerativeModel _model;
         private readonly ILogger<GeminiService> _logger;
 
+
         public GeminiService(IConfiguration configuration, ILogger<GeminiService> logger)
         {
             var apiKey = configuration["Gemini:ApiKey"];
+            var modelName = configuration["Gemini:Model"];
             if (string.IsNullOrEmpty(apiKey))
             {
                 throw new InvalidOperationException("Gemini API key is not configured");
             }
 
             _api = new GoogleAI(apiKey: apiKey);
-            _model = _api.GenerativeModel("gemini-2.0-flash-lite");
+            _model = _api.GenerativeModel(modelName!);
             _logger = logger;
         }
 
