@@ -413,4 +413,64 @@ public class FoodService : IFoodService
         }
     }
 
+    public async Task<SearchFoodResponseDTO> GetFoodDetailsAsync(int id, string type)
+    {
+        try
+        {
+            if (type == "Food")
+            {
+                var food = await _unitOfWork.Foods.GetByIdAsync(id);
+                if (food == null)
+                {
+                    throw new KeyNotFoundException("Food not found");
+                }
+
+                return new SearchFoodResponseDTO
+                {
+                    Id = food.FoodId,
+                    Name = food.Name,
+                    Calories = food.Calories,
+                    Carbs = food.Carbs,
+                    Fat = food.Fat,
+                    Protein = food.Protein,
+                    ServingUnit = null,
+                    SourceType = "Food",
+                    FoodId = food.FoodId,
+                    DishId = null
+                };
+            }
+            else if (type == "PredefinedDish")
+            {
+                var dish = await _unitOfWork.PredefinedDishes.GetByIdAsync(id);
+                if (dish == null)
+                {
+                    throw new KeyNotFoundException("PredefinedDish not found");
+                }
+
+                return new SearchFoodResponseDTO
+                {
+                    Id = dish.DishId,
+                    Name = dish.Name,
+                    Calories = dish.Calories,
+                    Carbs = dish.Carbs,
+                    Fat = dish.Fat,
+                    Protein = dish.Protein,
+                    ServingUnit = dish.ServingUnit,
+                    SourceType = "PredefinedDish",
+                    FoodId = null,
+                    DishId = dish.DishId
+                };
+            }
+            else
+            {
+                throw new ArgumentException("Invalid type. Must be 'Food' or 'PredefinedDish'");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while getting food details for id {Id} and type {Type}", id, type);
+            throw;
+        }
+    }
+
 }

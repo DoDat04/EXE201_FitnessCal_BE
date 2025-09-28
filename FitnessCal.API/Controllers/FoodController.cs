@@ -191,5 +191,62 @@ namespace FitnessCal.API.Controllers
                     });
             }
         }
+
+        [HttpGet("details/{id}")]
+        public async Task<ActionResult<ApiResponse<SearchFoodResponseDTO>>> GetFoodDetails(int id, [FromQuery] string type)
+        {
+            try
+            {
+                // Validate type parameter
+                if (string.IsNullOrWhiteSpace(type) || (type != "Food" && type != "PredefinedDish"))
+                {
+                    return StatusCode(ResponseCodes.StatusCodes.BAD_REQUEST, new ApiResponse<SearchFoodResponseDTO>
+                    {
+                        Success = false,
+                        Message = "Invalid type parameter. Must be 'Food' or 'PredefinedDish'",
+                        Data = null
+                    });
+                }
+
+                var result = await _foodService.GetFoodDetailsAsync(id, type);
+
+                return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<SearchFoodResponseDTO>
+                {
+                    Success = true,
+                    Message = $"Lấy thông tin chi tiết {type} thành công",
+                    Data = result
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "Food or Dish not found with id {Id} and type {Type}", id, type);
+                return StatusCode(ResponseCodes.StatusCodes.NOT_FOUND, new ApiResponse<SearchFoodResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid argument in GetFoodDetails: {Message}", ex.Message);
+                return StatusCode(ResponseCodes.StatusCodes.BAD_REQUEST, new ApiResponse<SearchFoodResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while getting food details for id {Id} and type {Type}", id, type);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<SearchFoodResponseDTO>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = null
+                });
+            }
+        }
     }
 }

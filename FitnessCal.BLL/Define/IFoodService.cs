@@ -10,5 +10,6 @@ namespace FitnessCal.BLL.Define
         Task<SearchFoodPaginationResponseDTO> SearchFoodsAsync(string? searchTerm = null, int page = 1, int pageSize = 15);
         Task<string> GenerateFoodsInformationAsync(string prompt);
         Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request, string prompt);
+        Task<SearchFoodResponseDTO> GetFoodDetailsAsync(int id, string type);
     }
 }
