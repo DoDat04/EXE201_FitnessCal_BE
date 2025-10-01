@@ -471,6 +471,10 @@ namespace FitnessCal.BLL.Implement
                 return "2 tuần";
             else if (durationMonths == 1m)
                 return "1 tháng";
+            else if (durationMonths == 3m)
+                return "3 tháng";
+            else if (durationMonths == 6m)
+                return "6 tháng";
             else
                 return $"{durationMonths} tháng";
         }
