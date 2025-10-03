@@ -47,6 +47,8 @@ public partial class FitnessCalContext : DbContext
 
     public virtual DbSet<UserActivity> UserActivities { get; set; }
 
+    public virtual DbSet<PackageFeature> PackageFeatures { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Food>(entity =>
@@ -712,6 +714,35 @@ public partial class FitnessCalContext : DbContext
             entity.HasIndex(e => new { e.UserId, e.ActivityId, e.ActivityDate })
                 .IsUnique()
                 .HasDatabaseName("user_activities_user_activity_date_unique");
+        });
+
+        modelBuilder.Entity<PackageFeature>(entity =>
+        {
+            entity.ToTable("package_features");
+
+            entity.HasKey(e => e.Id).HasName("package_features_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.FeatureName)
+                .IsRequired()
+                .HasColumnName("feature_name")
+                .HasColumnType("character varying(500)");
+
+            entity.Property(e => e.IsActive)
+                .HasColumnName("is_active")
+                .HasColumnType("boolean")
+                .HasDefaultValue(true);
+
+            entity.Property(e => e.DisplayOrder)
+                .HasColumnName("display_order")
+                .HasColumnType("integer")
+                .HasDefaultValue(1);
+
+            entity.HasIndex(e => new { e.IsActive, e.DisplayOrder })
+                .HasDatabaseName("idx_package_features_active_order");
         });
 
         OnModelCreatingPartial(modelBuilder);

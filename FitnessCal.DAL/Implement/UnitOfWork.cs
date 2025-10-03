@@ -22,6 +22,7 @@ namespace FitnessCal.DAL.Implement
         public IFavoriteFoodRepository FavoriteFoods { get; }
         public IActivityRepository Activities { get; }
         public IUserActivityRepository UserActivities { get; }
+        public IPackageFeatureRepository PackageFeatures { get; }
         public UnitOfWork(
             FitnessCalContext context,
             IUserRepository users,
@@ -38,7 +39,8 @@ namespace FitnessCal.DAL.Implement
             IAllergyRepository allergies,
             IFavoriteFoodRepository favoriteFoods,
             IActivityRepository activities,
-            IUserActivityRepository userActivities)
+            IUserActivityRepository userActivities,
+            IPackageFeatureRepository packageFeatures)
         {
             _context = context;
             Users = users;
@@ -56,6 +58,7 @@ namespace FitnessCal.DAL.Implement
             FavoriteFoods = favoriteFoods;
             Activities = activities;
             UserActivities = userActivities;
+            PackageFeatures = packageFeatures;
         }
 
         public async Task<bool> Save()

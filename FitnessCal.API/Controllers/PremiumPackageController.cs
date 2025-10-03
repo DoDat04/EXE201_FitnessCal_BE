@@ -20,8 +20,29 @@ namespace FitnessCal.API.Controllers
         {
             // Chỉ trả về các gói trả phí, không bao gồm gói Free
             var packages = await _uow.PremiumPackages.GetAllAsync();
-            var paidPackages = packages.Where(p => p.Price > 0).ToList();
-            return Ok(paidPackages);
+            var paidPackages = packages
+                .Where(p => p.Price > 0)
+                .Select(p => new
+                {
+                    p.PackageId,
+                    p.Name,
+                    p.DurationMonths,
+                    p.Price
+                })
+                .ToList();
+            var features = await _uow.PackageFeatures.GetAllAsync(f => f.IsActive);
+            var orderedFeatures = features
+                .OrderBy(f => f.DisplayOrder)
+                .Select(f => new
+                {
+                    f.Id,
+                    f.FeatureName,
+                    f.IsActive,
+                    f.DisplayOrder
+                })
+                .ToList();
+
+            return Ok(new { packages = paidPackages, features = orderedFeatures });
         }
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdatePremiumPackageRequest updatedPackage)

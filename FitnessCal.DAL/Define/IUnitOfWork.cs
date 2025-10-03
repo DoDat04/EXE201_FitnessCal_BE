@@ -18,6 +18,7 @@ namespace FitnessCal.DAL.Define
         IFavoriteFoodRepository FavoriteFoods { get; }
         IActivityRepository Activities { get; }
         IUserActivityRepository UserActivities { get; }
+        IPackageFeatureRepository PackageFeatures { get; }
         Task<bool> Save();
     }
 }
