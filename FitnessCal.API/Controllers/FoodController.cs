@@ -155,7 +155,7 @@ namespace FitnessCal.API.Controllers
 
         [HttpPost("upload-and-detect")]
         [Consumes("multipart/form-data")]
-        public async Task<ActionResult<ApiResponse<object>>> UploadAndDetectFood([FromForm] UploadFileRequest request, [FromQuery] string prompt)
+        public async Task<ActionResult<ApiResponse<object>>> UploadAndDetectFood([FromForm] UploadFileRequest request)
         {
             if (request.File == null || request.File.Length == 0)
             {
@@ -169,14 +169,10 @@ namespace FitnessCal.API.Controllers
 
             try
             {
-                // gọi xuống service
-                var result = await _foodService.UploadAndDetectFood(request, prompt);
+                // gọi xuống service (không cần prompt nữa)
+                var result = await _foodService.UploadAndDetectFood(request);
 
-                // Nếu service xử lý thành công thì return 200
-                if (result != null)
-                    return Ok(result);
-
-                // Nếu service báo lỗi nhưng không ném exception → vẫn trả về 200
+                // Nếu service xử lý thành công hoặc trả về lỗi soft → luôn trả 200
                 return Ok(result);
             }
             catch (Exception ex)
@@ -191,6 +187,7 @@ namespace FitnessCal.API.Controllers
                     });
             }
         }
+
 
         [HttpGet("details/{id}")]
         public async Task<ActionResult<ApiResponse<SearchFoodResponseDTO>>> GetFoodDetails(int id, [FromQuery] string type)
@@ -241,6 +238,57 @@ namespace FitnessCal.API.Controllers
             {
                 _logger.LogError(ex, "Error occurred while getting food details for id {Id} and type {Type}", id, type);
                 return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<SearchFoodResponseDTO>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = null
+                });
+            }
+        }
+        
+        [HttpGet("search-food-by-name")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<FoodResponseDTO?>>>> SearchFoodByName([FromQuery] string name)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    return StatusCode(ResponseCodes.StatusCodes.BAD_REQUEST, new ApiResponse<FoodResponseDTO>
+                    {
+                        Success = false,
+                        Message = "Name parameter is required",
+                        Data = null
+                    });
+                }
+
+                var food = await _foodService.SearchFoodByNameAsync(name);
+
+                var foodDto = food.Select(f =>
+                {
+                    if (f != null)
+                        return new FoodResponseDTO
+                        {
+                            FoodId = f.FoodId,
+                            Name = f.Name,
+                            Calories = f.Calories,
+                            Carbs = f.Carbs,
+                            Fat = f.Fat,
+                            Protein = f.Protein
+                        };
+                    return null;
+                });
+
+                return StatusCode(ResponseCodes.StatusCodes.OK, new ApiResponse<IEnumerable<FoodResponseDTO?>>
+                {
+                    Success = true,
+                    Message = $"Found food with name '{name}'",
+                    Data = foodDto
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while searching food by name '{Name}'", name);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<FoodResponseDTO>
                 {
                     Success = false,
                     Message = ResponseCodes.Messages.INTERNAL_ERROR,

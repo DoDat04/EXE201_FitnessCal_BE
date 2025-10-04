@@ -1,6 +1,7 @@
 ﻿using FitnessCal.BLL.DTO.CommonDTO;
 using FitnessCal.BLL.DTO.FoodDTO.Request;
 using FitnessCal.BLL.DTO.FoodDTO.Response;
+using FitnessCal.Domain;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FitnessCal.BLL.Define
@@ -8,8 +9,9 @@ namespace FitnessCal.BLL.Define
     public interface IFoodService
     {
         Task<SearchFoodPaginationResponseDTO> SearchFoodsAsync(string? searchTerm = null, int page = 1, int pageSize = 15);
+        Task<IEnumerable<Food?>> SearchFoodByNameAsync(string name);
         Task<string> GenerateFoodsInformationAsync(string prompt);
-        Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request, string prompt);
+        Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request);
         Task<SearchFoodResponseDTO> GetFoodDetailsAsync(int id, string type);
     }
 }

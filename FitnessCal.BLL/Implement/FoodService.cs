@@ -8,7 +8,6 @@ using FitnessCal.Domain;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using System.Linq;
 using System.Security.Claims;
 using System.Text;
 
@@ -27,7 +26,8 @@ public class FoodService : IFoodService
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     public FoodService(IUnitOfWork unitOfWork, ILogger<FoodService> logger, IGeminiService geminiService,
-        IFoodRepository foodRepository, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, IChatMessageRepository chatMessageRepository)
+        IFoodRepository foodRepository, IConfiguration configuration, IHttpContextAccessor httpContextAccessor,
+        IChatMessageRepository chatMessageRepository)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
@@ -148,6 +148,14 @@ public class FoodService : IFoodService
             throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
         }
     }
+
+    public async Task<IEnumerable<Food?>> SearchFoodByNameAsync(string name)
+    {
+        return await _unitOfWork.Foods.FirstOrDefaultAsync(f => f.Name.ToLower() == name.ToLower()) != null
+            ? new List<Food?> { await _unitOfWork.Foods.FirstOrDefaultAsync(f => f.Name.ToLower() == name.ToLower()) }!
+            : await _unitOfWork.Foods.FindAllAsync(f => f.Name.ToLower().Contains(name.ToLower()));
+    }
+
     public async Task<string> GenerateFoodsInformationAsync(string userPrompt)
     {
         Guid userId = GetCurrentUserId();
@@ -219,7 +227,7 @@ public class FoodService : IFoodService
         {
             chatMessage = new ChatMessage
             {
-                Id = Guid.NewGuid(),    
+                Id = Guid.NewGuid(),
                 UserId = userId,
                 ChatDate = today,
                 DailyMessages = new List<DailyMessage>()
@@ -275,7 +283,7 @@ public class FoodService : IFoodService
 
         return sb.ToString();
     }
-    
+
     private static string TransformUserQuery(string userPrompt)
     {
         if (string.IsNullOrWhiteSpace(userPrompt))
@@ -302,6 +310,7 @@ public class FoodService : IFoodService
 
         return normalized.Trim();
     }
+
     private Guid GetCurrentUserId()
     {
         var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
@@ -311,9 +320,9 @@ public class FoodService : IFoodService
         return Guid.Parse(userIdClaim.Value);
     }
 
-    public async Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request, string prompt)
+    public async Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request)
     {
-        if (request.File == null || request.File.Length == 0)
+        if (request.File.Length == 0)
         {
             return new ApiResponse<object>
             {
@@ -347,7 +356,10 @@ public class FoodService : IFoodService
                 .From("fitnesscal-storage")
                 .GetPublicUrl(remotePath);
 
-            // 2. Gọi Gemini
+            // 2. Transform query từ ảnh
+            string prompt = TransformQuery(publicUrl);
+
+            // 3. Gọi Gemini AI → text mô tả đồ ăn
             var response = await _geminiService.GenerateTextFromImageAsync(publicUrl, prompt);
             if (string.IsNullOrWhiteSpace(response))
             {
@@ -359,44 +371,78 @@ public class FoodService : IFoodService
                 };
             }
 
-            // 3. Chuẩn hóa tên
-            var foodName = response.Trim().ToLower();
+            // 4. Chuẩn hóa & tách text → nhiều món ăn
+            var detectedFoods = response
+                .Split(new[] { ',', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x
+                    .Replace("*", "")   
+                    .Replace("-", "")   
+                    .Trim()
+                    .ToLower())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
 
-            // 4. Check DB
-            var food = await _unitOfWork.Foods.FirstOrDefaultAsync(f => f.Name.ToLower() == foodName);
-
-            if (food != null)
+            if (!detectedFoods.Any())
             {
-                var foodDto = new FoodResponseDTO
-                {
-                    FoodId = food.FoodId,
-                    Name = food.Name,
-                    Calories = food.Calories,
-                    Carbs = food.Carbs,
-                    Fat = food.Fat,
-                    Protein = food.Protein
-                };
-
                 return new ApiResponse<object>
                 {
-                    Success = true,
-                    Message = $"Đã nhận diện thành công: {food.Name}",
-                    Data = new
-                    {
-                        ImageUrl = publicUrl,
-                        Food = foodDto
-                    }
+                    Success = false,
+                    Message = "Không tìm thấy món ăn hợp lệ trong văn bản AI trả về",
+                    Data = new { RawText = response }
                 };
             }
 
-            // 5. Nếu không có trong DB
+            // 5. Check DB & cộng dinh dưỡng
+            double totalCalories = 0, totalCarbs = 0, totalFat = 0, totalProtein = 0;
+            var foundFoods = new List<FoodResponseDTO>();
+            var notFoundFoods = new List<string>();
+
+            foreach (var foodName in detectedFoods)
+            {
+                var foods = await SearchFoodByNameAsync(foodName);
+                var food = foods?.FirstOrDefault();
+                if (food != null)
+                {
+                    totalCalories += food.Calories;
+                    totalCarbs += food.Carbs;
+                    totalFat += food.Fat;
+                    totalProtein += food.Protein;
+
+                    foundFoods.Add(new FoodResponseDTO
+                    {
+                        FoodId = food.FoodId,
+                        Name = food.Name,
+                        Calories = food.Calories,
+                        Carbs = food.Carbs,
+                        Fat = food.Fat,
+                        Protein = food.Protein
+                    });
+                }
+                else
+                {
+                    notFoundFoods.Add(foodName);
+                }
+            }
+
+            // 6. Trả kết quả
             return new ApiResponse<object>
             {
                 Success = true,
-                Message = "Text generated successfully from image using Gemini API",
+                Message = foundFoods.Any()
+                    ? "Đã nhận diện thành công một số món ăn"
+                    : "Không tìm thấy món ăn nào trong DB",
                 Data = new
                 {
                     ImageUrl = publicUrl,
+                    Foods = foundFoods,
+                    TotalNutrition = new
+                    {
+                        Calories = totalCalories,
+                        Carbs = totalCarbs,
+                        Fat = totalFat,
+                        Protein = totalProtein
+                    },
+                    NotFound = notFoundFoods,
                     RawText = response
                 }
             };
@@ -411,6 +457,18 @@ public class FoodService : IFoodService
                 Data = null
             };
         }
+    }
+
+    private static string TransformQuery(string imageUrl)
+    {
+        return $@"
+            Phân tích món ăn trong ảnh sau: {imageUrl}.
+            Nhiệm vụ:
+            1. Nhận diện tất cả món ăn có trong ảnh.
+            2. Trả về danh sách tên món ăn (ngắn gọn, rõ ràng).
+            3. Nếu có nhiều món, hãy liệt kê theo từng dòng.
+            4. Không giải thích dài dòng, chỉ liệt kê tên món ăn để dùng cho tra cứu DB.
+            ";
     }
 
     public async Task<SearchFoodResponseDTO> GetFoodDetailsAsync(int id, string type)
@@ -472,5 +530,4 @@ public class FoodService : IFoodService
             throw;
         }
     }
-
 }
