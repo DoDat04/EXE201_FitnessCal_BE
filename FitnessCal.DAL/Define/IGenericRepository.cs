@@ -9,6 +9,9 @@ namespace FitnessCal.DAL.Define
             params Expression<Func<T, object>>[] includes);
         Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
         Task<T?> GetByIdAsync(object id);
+        Task<T?> GetByIdAsync(
+            Expression<Func<T, bool>> predicate,
+            params Expression<Func<T, object>>[] includes);
         Task AddAsync(T entity);
         Task UpdateAsync(T entity);
         Task DeleteAsync(T entity);

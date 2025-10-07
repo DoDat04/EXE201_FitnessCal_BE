@@ -1,5 +1,6 @@
 ﻿using FitnessCal.BLL.DTO.UserDTO.Response;
 using FitnessCal.BLL.DTO.DashboardDTO.Response;
+using FitnessCal.BLL.DTO.UserHealthDTO.Response;
 
 namespace FitnessCal.BLL.Define
 {
