@@ -334,10 +334,8 @@ public class FoodService : IFoodService
 
         try
         {
-            // 1. Upload file lên Supabase
-            var fileName = string.IsNullOrWhiteSpace(request.File.FileName)
-                ? Guid.NewGuid().ToString()
-                : request.File.FileName;
+            // 1. Upload file lên Supabase, custom tên file theo id người dùng và timestamp
+            var fileName = $"{GetCurrentUserId()}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{request.File.FileName}";
 
             byte[] fileBytes;
             await using (var memoryStream = new MemoryStream())
