@@ -41,11 +41,15 @@ namespace FitnessCal.API.Controllers
             if (string.IsNullOrWhiteSpace(request.FeatureName))
                 return BadRequest("FeatureName is required");
 
+            // Tự động gán DisplayOrder = max hiện tại + 1, bỏ qua giá trị client gửi
+            var existing = await _uow.PackageFeatures.GetAllAsync();
+            var maxOrder = existing.Any() ? existing.Max(f => f.DisplayOrder) : 0;
+
             var entity = new PackageFeature
             {
                 FeatureName = request.FeatureName.Trim(),
                 IsActive = request.IsActive,
-                DisplayOrder = request.DisplayOrder
+                DisplayOrder = maxOrder + 1
             };
             await _uow.PackageFeatures.AddAsync(entity);
             await _uow.Save();
@@ -58,10 +62,11 @@ namespace FitnessCal.API.Controllers
             var entity = await _uow.PackageFeatures.GetByIdAsync(id);
             if (entity == null) return NotFound();
 
+            // Chỉ cho phép cập nhật tên tính năng; không thay đổi IsActive/DisplayOrder tại đây
             if (!string.IsNullOrWhiteSpace(request.FeatureName))
+            {
                 entity.FeatureName = request.FeatureName.Trim();
-            entity.IsActive = request.IsActive;
-            entity.DisplayOrder = request.DisplayOrder;
+            }
 
             await _uow.PackageFeatures.UpdateAsync(entity);
             await _uow.Save();
@@ -73,9 +78,10 @@ namespace FitnessCal.API.Controllers
         {
             var entity = await _uow.PackageFeatures.GetByIdAsync(id);
             if (entity == null) return NotFound();
-            await _uow.PackageFeatures.DeleteAsync(entity);
+            entity.IsActive = !entity.IsActive;
+            await _uow.PackageFeatures.UpdateAsync(entity);
             await _uow.Save();
-            return NoContent();
+            return Ok(new { entity.Id, entity.IsActive });
         }
     }
 }
