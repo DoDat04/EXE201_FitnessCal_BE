@@ -5,11 +5,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <UserSecretsId>f27f7d6d-a5a9-476c-8158-5b896f7fbac1</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="LiveChartsCore.SkiaSharpView.WPF" Version="2.0.0-rc6.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.19" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
     <PackageReference Include="MongoDB.Driver" Version="3.5.0" />
     <PackageReference Include="payOS" Version="1.0.9" />
     <PackageReference Include="Scrutor" Version="6.1.0" />
@@ -19,12 +21,6 @@
   <ItemGroup>
     <ProjectReference Include="..\FitnessCal.BLL\FitnessCal.BLL.csproj" />
     <ProjectReference Include="..\FitnessCal.DAL\FitnessCal.DAL.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="..\.dockerignore">
-      <Link>.dockerignore</Link>
-    </Content>
   </ItemGroup>
 
 </Project>

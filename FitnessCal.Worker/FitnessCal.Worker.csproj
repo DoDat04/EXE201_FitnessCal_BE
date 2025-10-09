@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-FitnessCal.Worker-c9293c97-5a36-4ed2-8e09-aab3f1af46ec</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,5 +17,11 @@
 	  <PackageReference Include="Scrutor" Version="6.1.0" />
     <ProjectReference Include="..\FitnessCal.DAL\FitnessCal.DAL.csproj" />
     <ProjectReference Include="..\FitnessCal.Domain\FitnessCal.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\.dockerignore">
+      <Link>.dockerignore</Link>
+    </Content>
   </ItemGroup>
 </Project>
