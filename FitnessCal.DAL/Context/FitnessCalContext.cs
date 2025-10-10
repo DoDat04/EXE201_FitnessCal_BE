@@ -49,6 +49,10 @@ public partial class FitnessCalContext : DbContext
 
     public virtual DbSet<PackageFeature> PackageFeatures { get; set; }
 
+    public virtual DbSet<UserDevices> UserDevices { get; set; }
+
+    public virtual DbSet<UserNotificationSettings> UserNotificationSettings { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Food>(entity =>
@@ -743,6 +747,104 @@ public partial class FitnessCalContext : DbContext
 
             entity.HasIndex(e => new { e.IsActive, e.DisplayOrder })
                 .HasDatabaseName("idx_package_features_active_order");
+        });
+
+        modelBuilder.Entity<UserDevices>(entity =>
+        {
+            entity.ToTable("userdevices");
+
+            entity.HasKey(e => e.Id).HasName("userdevices_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.UserId)
+                .IsRequired()
+                .HasColumnName("userid")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.FcmToken)
+                .IsRequired()
+                .HasColumnName("fcmtoken")
+                .HasColumnType("character varying(255)");
+
+            entity.Property(e => e.DeviceType)
+                .HasColumnName("devicetype")
+                .HasColumnType("character varying(50)");
+
+            entity.Property(e => e.DeviceName)
+                .HasColumnName("devicename")
+                .HasColumnType("character varying(100)");
+
+            entity.Property(e => e.IsActive)
+                .HasColumnName("isactive")
+                .HasColumnType("boolean")
+                .HasDefaultValue(true);
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("createdat")
+                .HasColumnType("timestamp with time zone")
+                .HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("userdevices_userid_fkey");
+
+            entity.HasIndex(e => new { e.UserId, e.FcmToken })
+                .IsUnique()
+                .HasDatabaseName("userdevices_userid_fcmtoken_unique");
+        });
+
+        modelBuilder.Entity<UserNotificationSettings>(entity =>
+        {
+            entity.ToTable("usernotificationsettings");
+
+            entity.HasKey(e => e.Id).HasName("usernotificationsettings_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .HasColumnType("uuid")
+                .HasDefaultValueSql("gen_random_uuid()");
+
+            entity.Property(e => e.UserId)
+                .IsRequired()
+                .HasColumnName("userid")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.IsNotificationEnabled)
+                .HasColumnName("isnotificationenabled")
+                .HasColumnType("boolean")
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.BreakfastNotification)
+                .HasColumnName("breakfastnotification")
+                .HasColumnType("boolean")
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.LunchNotification)
+                .HasColumnName("lunchnotification")
+                .HasColumnType("boolean")
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.DinnerNotification)
+                .HasColumnName("dinnernotification")
+                .HasColumnType("boolean")
+                .HasDefaultValue(false);
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("createdat")
+                .HasColumnType("timestamp with time zone")
+                .HasDefaultValueSql("now()");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("usernotificationsettings_userid_fkey");
+
+            entity.HasIndex(e => e.UserId)
+                .IsUnique()
+                .HasDatabaseName("usernotificationsettings_userid_unique");
         });
 
         OnModelCreatingPartial(modelBuilder);

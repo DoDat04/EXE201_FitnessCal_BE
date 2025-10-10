@@ -71,16 +71,19 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<PayOSSettings>(builder.Configuration.GetSection("PayOS"));
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<MealNotificationSettings>(builder.Configuration.GetSection("MealNotificationSettings"));
 
 // -------------------- Worker Services --------------------
 builder.Services.AddScoped<IDailyMealLogGeneratorService, DailyMealLogGeneratorService>();
 builder.Services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
+builder.Services.AddScoped<IMealNotificationSchedulerService, MealNotificationSchedulerService>();
 
 // OTP Cleanup Worker
 builder.Services.AddHostedService<CleanupUsedOTPWorker>();
 
 // -------------------- Hosted Services --------------------
 builder.Services.AddHostedService<DailyMealLogWorker>();
+builder.Services.AddHostedService<MealNotificationWorker>();
 
 // -------------------- Build & Run --------------------
 var host = builder.Build();
