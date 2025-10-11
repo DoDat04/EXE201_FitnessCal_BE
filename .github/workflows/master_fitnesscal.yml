@@ -27,7 +27,10 @@ jobs:
         run: dotnet build --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: |
+          dotnet publish FitnessCal.API/FitnessCal.API.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
+          cp FitnessCal.API/appsettings.json ${{env.DOTNET_ROOT}}/myapp/appsettings.json
+          cp FitnessCal.API/appsettings.Production.json ${{env.DOTNET_ROOT}}/myapp/appsettings.Production.json || echo "No production config found"
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -62,4 +65,5 @@ jobs:
           app-name: 'fitnesscal'
           slot-name: 'Production'
           package: .
+
           
