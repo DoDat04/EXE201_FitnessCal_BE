@@ -1,38 +1,47 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\FitnessCal.Domain\FitnessCal.Domain.csproj" />
-    <ProjectReference Include="..\FitnessCal.DAL\FitnessCal.DAL.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\FitnessCal.Domain\FitnessCal.Domain.csproj" />
+		<ProjectReference Include="..\FitnessCal.DAL\FitnessCal.DAL.csproj" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
-    <PackageReference Include="ClosedXML" Version="0.105.0" />
-    <PackageReference Include="FirebaseAdmin" Version="3.3.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.0" />
-    <PackageReference Include="Mscc.GenerativeAI" Version="2.8.11" />
-    <PackageReference Include="payOS" Version="1.0.9" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.3.1" />
-    <PackageReference Include="Google_GenerativeAI" Version="3.0.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<!-- Security & JWT dependencies -->
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.9.0" />
+		<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.9.0" />
+		<PackageReference Include="Microsoft.IdentityModel.Logging" Version="8.9.0" />
+		<PackageReference Include="Microsoft.IdentityModel.Protocols" Version="8.9.0" />
+		<PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.9.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
 
-  <ItemGroup>
-    <Folder Include="DTO\ActivityDTO\Request\" />
-    <Folder Include="DTO\UserActivityDTO\" />
-    <Folder Include="DTO\UserMealItemDTO\Response\" />
-    <Folder Include="DTO\UserMealLogDTO\Response\" />
-  </ItemGroup>
+		<!-- Other libraries -->
+		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+		<PackageReference Include="ClosedXML" Version="0.105.0" />
+		<PackageReference Include="FirebaseAdmin" Version="3.3.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.0" />
+		<PackageReference Include="Mscc.GenerativeAI" Version="2.8.11" />
+		<PackageReference Include="payOS" Version="1.0.9" />
+		<PackageReference Include="Google_GenerativeAI" Version="3.0.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Include="Templates\OTPEmailTemplate.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="DTO\ActivityDTO\Request\" />
+		<Folder Include="DTO\UserActivityDTO\" />
+		<Folder Include="DTO\UserMealItemDTO\Response\" />
+		<Folder Include="DTO\UserMealLogDTO\Response\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="Templates\OTPEmailTemplate.html">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>

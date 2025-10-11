@@ -9,6 +9,7 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using FitnessCal.BLL.DTO.CommonDTO;
 using MongoDB.Driver;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -136,12 +137,26 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "FitnessCal API v1");
+});
 
+// ✅ Dùng HTTPS redirect khi chạy local, còn Production thì dùng proxy header
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseHttpsRedirection();
 }
+else
+{
+    // Azure / Nginx / ContainerApp sẽ gửi header X-Forwarded-Proto
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    });
+}
+
 
 if (!app.Environment.IsDevelopment())
 {
