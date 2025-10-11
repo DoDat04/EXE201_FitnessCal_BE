@@ -23,11 +23,12 @@ namespace FitnessCal.Worker
             _schedulerService = schedulerService;
         }
 
-        // ✅ Runs once every midnight (UTC) — adjust if needed
+        // ⚙️ Run every 1 minute + run immediately on startup (for testing)
         [Function("DailyMealLogWorker")]
-        public async Task RunAsync([TimerTrigger("0 0 0 * * *", RunOnStartup = true)] TimerInfo timer)
+        public async Task RunAsync(
+            [TimerTrigger("0 */1 * * * *", RunOnStartup = true)] TimerInfo timer)
         {
-            _logger.LogInformation("✅ DailyMealLogWorker triggered at: {time}", DateTime.UtcNow);
+            _logger.LogInformation("🚀 DailyMealLogWorker triggered at: {time}", DateTime.UtcNow);
 
             try
             {
