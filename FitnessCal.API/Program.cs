@@ -32,7 +32,19 @@ builder.Services.AddScoped<IMongoDatabase>(sp =>
 // ========== PostgreSQL ==========
 builder.Services.AddDbContext<FitnessCalContext>(options =>
 {
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
+        npgsqlOptions =>
+        {
+            // 👉 Tự retry khi gặp lỗi mạng hoặc Supabase sleep
+            npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorCodesToAdd: null
+            );
+
+            // 👉 Cho phép lệnh chạy tối đa 60 giây (mặc định chỉ 15 giây)
+            npgsqlOptions.CommandTimeout(60);
+        });
 });
 
 builder.Services.AddMemoryCache();
