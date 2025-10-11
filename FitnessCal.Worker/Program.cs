@@ -7,41 +7,46 @@ using FitnessCal.Domain;
 using FitnessCal.Worker.Define;
 using FitnessCal.Worker.Implement;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
 using Scrutor;
-using Microsoft.Extensions.Configuration;
 
+// ⚡ Build và chạy Azure Function host
 var host = new HostBuilder()
-    .ConfigureFunctionsWorkerDefaults() // Bắt buộc cho Azure Function
+    // 🧩 BẮT BUỘC: cấu hình Function Worker (nếu thiếu, Azure sẽ không thấy Function nào)
+    .ConfigureFunctionsWorkerDefaults()
+
+    // ⚙️ Logging config
     .ConfigureLogging(logging =>
     {
         logging.ClearProviders();
-        logging.AddConsole();
+        logging.AddConsole(); // Cho phép xem log trên Azure Log Stream
     })
+
+    // ⚙️ Configuration + Dependency Injection
     .ConfigureServices((context, services) =>
     {
         var configuration = context.Configuration;
 
-        // -------------------- DbContext --------------------
+        // ========== Database SQL (PostgreSQL) ==========
         services.AddDbContext<FitnessCalContext>(options =>
         {
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"),
-                npgsqlOptions =>
-                {
-                    npgsqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
-                    npgsqlOptions.CommandTimeout(60);
-                });
+            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"), npgsqlOptions =>
+            {
+                npgsqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+                npgsqlOptions.CommandTimeout(60);
+            });
         });
 
-        // -------------------- MongoDB --------------------
-        services.AddSingleton<IMongoClient>(sp =>
+        // ========== MongoDB ==========
+        services.AddSingleton<IMongoClient>(_ =>
         {
-            var connectionString = configuration.GetConnectionString("MongoConnection");
-            return new MongoClient(connectionString);
+            var mongoConnection = configuration.GetConnectionString("MongoConnection");
+            return new MongoClient(mongoConnection);
         });
 
         services.AddSingleton<IMongoDatabase>(sp =>
@@ -50,10 +55,10 @@ var host = new HostBuilder()
             return client.GetDatabase("FitnessCalDB");
         });
 
-        // -------------------- HttpClient + HttpContext --------------------
+        // ========== HttpClient ==========
         services.AddHttpClient();
 
-        // -------------------- Scan Repository & Service --------------------
+        // ========== Scan Repository & Services ==========
         services.Scan(scan => scan
             .FromAssemblies(
                 typeof(IUserRepository).Assembly,
@@ -63,23 +68,24 @@ var host = new HostBuilder()
             .AsImplementedInterfaces()
             .WithScopedLifetime());
 
-        // -------------------- UnitOfWork --------------------
+        // ========== UnitOfWork ==========
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-        // -------------------- Settings --------------------
+        // ========== App Settings ==========
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         services.Configure<PayOSSettings>(configuration.GetSection("PayOS"));
         services.Configure<EmailSettings>(configuration.GetSection("Email"));
         services.Configure<MealNotificationSettings>(configuration.GetSection("MealNotificationSettings"));
 
-        // -------------------- Worker Services --------------------
+        // ========== Worker Services ==========
         services.AddScoped<IDailyMealLogGeneratorService, DailyMealLogGeneratorService>();
         services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
         services.AddScoped<IMealNotificationSchedulerService, MealNotificationSchedulerService>();
 
-        // ❌ KHÔNG ĐĂNG KÝ AddHostedService nữa
-        // Các worker sẽ được gọi qua [Function] + [TimerTrigger]
+        // ❌ KHÔNG cần AddHostedService trong Function App
+        // vì bạn đang dùng [Function] + [TimerTrigger]
     })
     .Build();
 
+// 🚀 Chạy host
 host.Run();
