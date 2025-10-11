@@ -2,6 +2,8 @@
 
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
+		<OutputType>Exe</OutputType>
+		<!-- ⚡ BẮT BUỘC có để fix lỗi top-level statements -->
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<AzureFunctionsVersion>v4</AzureFunctionsVersion>
@@ -9,23 +11,27 @@
 		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
 	</PropertyGroup>
 
+	<!-- ✅ host.json phải được copy vào output -->
 	<ItemGroup>
-	  <Content Include="host.json" />
+		<Content Include="host.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- ✅ Function Worker SDK -->
-		<PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.1.0" />
+		<!-- ✅ SDK và Function Worker Packages -->
 		<PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.5" OutputItemType="Analyzer" />
+		<PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.0.5" />
+		<!-- ⚠️ giảm xuống 2.0.5 vì 2.1.0 chưa có trên nuget -->
 		<PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1" />
 
-		<!-- ✅ Hosting + DI -->
+		<!-- ✅ Hosting & Dependency Injection -->
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
 		<PackageReference Include="Scrutor" Version="6.1.0" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- ✅ Project references -->
+		<!-- ✅ Project References -->
 		<ProjectReference Include="..\FitnessCal.BLL\FitnessCal.BLL.csproj" />
 		<ProjectReference Include="..\FitnessCal.DAL\FitnessCal.DAL.csproj" />
 		<ProjectReference Include="..\FitnessCal.Domain\FitnessCal.Domain.csproj" />
