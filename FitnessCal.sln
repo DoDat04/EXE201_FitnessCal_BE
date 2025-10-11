@@ -11,8 +11,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FitnessCal.BLL", "FitnessCa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FitnessCal.Domain", "FitnessCal.Domain\FitnessCal.Domain.csproj", "{ADC28A7F-01A8-49FF-9D9A-6DFB76A4B4A4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessCal.Worker", "FitnessCal.Worker\FitnessCal.Worker.csproj", "{65948B07-B6EE-47D7-AB79-9B5E6DCC59DB}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,10 +33,6 @@ Global
 		{ADC28A7F-01A8-49FF-9D9A-6DFB76A4B4A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ADC28A7F-01A8-49FF-9D9A-6DFB76A4B4A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ADC28A7F-01A8-49FF-9D9A-6DFB76A4B4A4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{65948B07-B6EE-47D7-AB79-9B5E6DCC59DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{65948B07-B6EE-47D7-AB79-9B5E6DCC59DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{65948B07-B6EE-47D7-AB79-9B5E6DCC59DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{65948B07-B6EE-47D7-AB79-9B5E6DCC59DB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
