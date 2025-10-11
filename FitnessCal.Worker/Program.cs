@@ -1,5 +1,4 @@
 ﻿using FitnessCal.BLL.Define;
-using FitnessCal.BLL.DTO.CommonDTO;
 using FitnessCal.BLL.Implement;
 using FitnessCal.DAL.Define;
 using FitnessCal.DAL.Implement;
@@ -14,21 +13,32 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using Scrutor;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
+using FitnessCal.BLL.DTO.CommonDTO;
 
-var host = Host.CreateDefaultBuilder() // ✅ Quan trọng: dùng CreateDefaultBuilder thay vì new HostBuilder()
-    .ConfigureFunctionsWorkerDefaults() // 🧩 Bắt buộc: đăng ký Azure Function runtime (để Function "connect" được)
-
-    // ⚙️ Logging config
+var host = Host.CreateDefaultBuilder()
+    .ConfigureFunctionsWorkerDefaults()
     .ConfigureLogging(logging =>
     {
         logging.ClearProviders();
-        logging.AddConsole(); // Cho phép log ra Log Stream trên Azure
+        logging.AddConsole();
     })
-
-    // ⚙️ Configuration + Dependency Injection
     .ConfigureServices((context, services) =>
     {
         var configuration = context.Configuration;
+
+        // ========== Firebase Admin ========== 
+        var serviceAccountJson = configuration["Firebase__ServiceAccountKeyJson"];
+        if (!string.IsNullOrEmpty(serviceAccountJson))
+        {
+            var options = new AppOptions()
+            {
+                Credential = GoogleCredential.FromJson(serviceAccountJson),
+                ProjectId = configuration["Firebase__ProjectId"]
+            };
+            FirebaseApp.Create(options);
+        }
 
         // ========== Database SQL (PostgreSQL) ==========
         services.AddDbContext<FitnessCalContext>(options =>
@@ -46,17 +56,13 @@ var host = Host.CreateDefaultBuilder() // ✅ Quan trọng: dùng CreateDefaultB
             var mongoConnection = configuration.GetConnectionString("MongoConnection");
             return new MongoClient(mongoConnection);
         });
-
         services.AddSingleton<IMongoDatabase>(sp =>
         {
             var client = sp.GetRequiredService<IMongoClient>();
             return client.GetDatabase("FitnessCalDB");
         });
 
-        // ========== HttpClient ==========
         services.AddHttpClient();
-        
-        // ========== HttpContextAccessor (cần cho FoodService) ==========
         services.AddHttpContextAccessor();
 
         // ========== Scan Repository & Services ==========
@@ -69,7 +75,6 @@ var host = Host.CreateDefaultBuilder() // ✅ Quan trọng: dùng CreateDefaultB
             .AsImplementedInterfaces()
             .WithScopedLifetime());
 
-        // ========== UnitOfWork ==========
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // ========== App Settings ==========
@@ -82,8 +87,6 @@ var host = Host.CreateDefaultBuilder() // ✅ Quan trọng: dùng CreateDefaultB
         services.AddScoped<IDailyMealLogGeneratorService, DailyMealLogGeneratorService>();
         services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
         services.AddScoped<IMealNotificationSchedulerService, MealNotificationSchedulerService>();
-
-        // ❌ KHÔNG cần AddHostedService vì Function App dùng [TimerTrigger]
     })
     .Build();
 
