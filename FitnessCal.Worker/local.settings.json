@@ -1,0 +1,14 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "Firebase:ProjectId": "fitnesscal-ec646",
+    "Firebase:ServiceAccountKeyPath": "Config/firebase-adminsdk.json"
+  },
+
+  "ConnectionStrings": {
+    "DefaultConnection": "User Id=postgres.xivtgyrrcbmqpauftekn;Password=Thanhdat3009@;Server=aws-0-ap-southeast-1.pooler.supabase.com;Port=5432;Database=postgres",
+    "MongoConnection": "mongodb+srv://fitnesscal:Thanhdat3009@cluster0.abc123.mongodb.net/?retryWrites=true&w=majority"
+  }
+}
