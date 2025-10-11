@@ -9,11 +9,34 @@
     },
     "logLevel": {
       "default": "Information",
-      "Function": "Information"
+      "Microsoft": "Warning",
+      "Worker": "Information",
+      "Function": "Information",
+      "Host.Results": "Information",
+      "Host.Aggregator": "Information"
+    }
+  },
+  "extensions": {
+    "timers": {
+      "scheduleMonitor": {
+        // ⚙️ Cho phép Azure lưu lại lịch sử thực thi timer để tránh chạy trùng
+        "enabled": true
+      },
+      "batchSize": 1,
+      "maxDegreeOfParallelism": 1,
+      "maxConcurrentInvocations": 1
     }
   },
   "extensionBundle": {
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
     "version": "[4.*, 5.0.0)"
+  },
+  "functionTimeout": "00:10:00",
+  "healthMonitor": {
+    // 🩺 Theo dõi tình trạng function worker
+    "enabled": true,
+    "healthCheckInterval": "00:00:10",
+    "healthCheckWindow": "00:02:00",
+    "healthCheckThreshold": 6
   }
 }

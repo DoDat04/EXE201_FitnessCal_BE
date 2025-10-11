@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,9 +27,12 @@ namespace FitnessCal.Worker
         // ⚙️ Run every 1 minute + run immediately on startup (for testing)
         [Function("DailyMealLogWorker")]
         public async Task RunAsync(
-            [TimerTrigger("0 */1 * * * *", RunOnStartup = true)] TimerInfo timer)
+            [TimerTrigger("0 */1 * * * *", RunOnStartup = true)] TimerInfo timer,
+            FunctionContext context,
+            CancellationToken cancellationToken)
         {
-            _logger.LogInformation("🚀 DailyMealLogWorker triggered at: {time}", DateTime.UtcNow);
+            var functionName = context.FunctionDefinition.Name;
+            _logger.LogInformation("🚀 {FunctionName} triggered at: {time}", functionName, DateTimeOffset.UtcNow);
 
             try
             {
@@ -37,11 +41,11 @@ namespace FitnessCal.Worker
 
                 await mealLogService.GenerateDailyMealLogsAsync();
 
-                _logger.LogInformation("✅ Daily meal logs generated successfully at {time}.", DateTime.UtcNow);
+                _logger.LogInformation("✅ Daily meal logs generated successfully at {time}.", DateTimeOffset.UtcNow);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error generating daily meal logs at {time}", DateTime.UtcNow);
+                _logger.LogError(ex, "❌ Error generating daily meal logs at {time}", DateTimeOffset.UtcNow);
             }
 
             try

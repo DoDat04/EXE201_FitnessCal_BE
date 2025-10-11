@@ -3,35 +3,49 @@
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
 		<OutputType>Exe</OutputType>
-		<!-- ⚡ BẮT BUỘC có để fix lỗi top-level statements -->
+
+		<!-- ⚙️ Cấu hình bắt buộc cho Function Isolated Worker -->
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<AzureFunctionsVersion>v4</AzureFunctionsVersion>
+
+		<!-- 👇 Giúp build chuẩn cho Azure -->
+		<InvariantGlobalization>false</InvariantGlobalization>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
 		<UserSecretsId>dotnet-FitnessCal.Worker-c9293c97-5a36-4ed2-8e09-aab3f1af46ec</UserSecretsId>
 		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
 	</PropertyGroup>
 
-	<!-- ✅ host.json phải được copy vào output -->
+	<!-- ✅ Đảm bảo host.json luôn có trong output -->
 	<ItemGroup>
 		<Content Include="host.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+		<!-- Nếu có local.settings.json để test local -->
+		<Content Include="local.settings.json" Condition="Exists('local.settings.json')">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- ✅ SDK và Function Worker Packages -->
-		<PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.5" OutputItemType="Analyzer" />
+		<!-- ✅ Function Worker SDK (phải có PrivateAssets="all") -->
+		<PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.0.5" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.0.5" />
-		<!-- ⚠️ giảm xuống 2.0.5 vì 2.1.0 chưa có trên nuget -->
 		<PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1" />
 
-		<!-- ✅ Hosting & Dependency Injection -->
+		<!-- ✅ Dependency Injection & Logging -->
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.1" />
+
 		<PackageReference Include="Scrutor" Version="6.1.0" />
+
+		<!-- 🧠 Optional: Application Insights nếu dùng -->
+		<PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.22.0" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- ✅ Project References -->
+		<!-- ✅ Dự án nội bộ -->
 		<ProjectReference Include="..\FitnessCal.BLL\FitnessCal.BLL.csproj" />
 		<ProjectReference Include="..\FitnessCal.DAL\FitnessCal.DAL.csproj" />
 		<ProjectReference Include="..\FitnessCal.Domain\FitnessCal.Domain.csproj" />

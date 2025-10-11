@@ -15,16 +15,14 @@ using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using Scrutor;
 
-// ⚡ Build và chạy Azure Function host
-var host = new HostBuilder()
-    // 🧩 BẮT BUỘC: cấu hình Function Worker (nếu thiếu, Azure sẽ không thấy Function nào)
-    .ConfigureFunctionsWorkerDefaults()
+var host = Host.CreateDefaultBuilder() // ✅ Quan trọng: dùng CreateDefaultBuilder thay vì new HostBuilder()
+    .ConfigureFunctionsWorkerDefaults() // 🧩 Bắt buộc: đăng ký Azure Function runtime (để Function "connect" được)
 
     // ⚙️ Logging config
     .ConfigureLogging(logging =>
     {
         logging.ClearProviders();
-        logging.AddConsole(); // Cho phép xem log trên Azure Log Stream
+        logging.AddConsole(); // Cho phép log ra Log Stream trên Azure
     })
 
     // ⚙️ Configuration + Dependency Injection
@@ -82,10 +80,8 @@ var host = new HostBuilder()
         services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
         services.AddScoped<IMealNotificationSchedulerService, MealNotificationSchedulerService>();
 
-        // ❌ KHÔNG cần AddHostedService trong Function App
-        // vì bạn đang dùng [Function] + [TimerTrigger]
+        // ❌ KHÔNG cần AddHostedService vì Function App dùng [TimerTrigger]
     })
     .Build();
 
-// 🚀 Chạy host
 host.Run();
