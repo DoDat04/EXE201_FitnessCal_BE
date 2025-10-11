@@ -55,6 +55,9 @@ var host = Host.CreateDefaultBuilder() // ✅ Quan trọng: dùng CreateDefaultB
 
         // ========== HttpClient ==========
         services.AddHttpClient();
+        
+        // ========== HttpContextAccessor (cần cho FoodService) ==========
+        services.AddHttpContextAccessor();
 
         // ========== Scan Repository & Services ==========
         services.Scan(scan => scan
