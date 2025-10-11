@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
 using Scrutor;
+using Microsoft.Extensions.Configuration;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWorkerDefaults() // Bắt buộc cho Azure Function
