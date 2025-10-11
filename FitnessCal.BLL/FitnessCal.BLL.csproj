@@ -29,6 +29,11 @@
 		<PackageReference Include="payOS" Version="1.0.9" />
 		<PackageReference Include="Google_GenerativeAI" Version="3.0.0" />
 	</ItemGroup>
+	<ItemGroup>
+		<None Update="firebase-config.json">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 
 	<ItemGroup>

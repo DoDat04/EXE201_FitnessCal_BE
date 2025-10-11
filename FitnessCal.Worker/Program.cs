@@ -4,87 +4,81 @@ using FitnessCal.BLL.Implement;
 using FitnessCal.DAL.Define;
 using FitnessCal.DAL.Implement;
 using FitnessCal.Domain;
-using FitnessCal.Worker;
 using FitnessCal.Worker.Define;
 using FitnessCal.Worker.Implement;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Azure.Functions.Worker;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using MongoDB.Driver;
 using Scrutor;
 
-var builder = Host.CreateApplicationBuilder(args);
+var host = new HostBuilder()
+    .ConfigureFunctionsWorkerDefaults() // Bắt buộc cho Azure Function
+    .ConfigureLogging(logging =>
+    {
+        logging.ClearProviders();
+        logging.AddConsole();
+    })
+    .ConfigureServices((context, services) =>
+    {
+        var configuration = context.Configuration;
 
-// -------------------- Logging --------------------
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
-// -------------------- DbContext --------------------
-builder.Services.AddDbContext<FitnessCalContext>(options =>
-{
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"),
-        npgsqlOptions =>
+        // -------------------- DbContext --------------------
+        services.AddDbContext<FitnessCalContext>(options =>
         {
-            // 👉 Tự retry khi gặp lỗi mạng hoặc Supabase sleep
-            npgsqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(10),
-                errorCodesToAdd: null
-            );
-
-            // 👉 Cho phép lệnh chạy tối đa 60 giây (mặc định chỉ 15 giây)
-            npgsqlOptions.CommandTimeout(60);
+            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"),
+                npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+                    npgsqlOptions.CommandTimeout(60);
+                });
         });
-});
 
+        // -------------------- MongoDB --------------------
+        services.AddSingleton<IMongoClient>(sp =>
+        {
+            var connectionString = configuration.GetConnectionString("MongoConnection");
+            return new MongoClient(connectionString);
+        });
 
-// -------------------- MongoDB --------------------
-builder.Services.AddSingleton<IMongoClient>(sp =>
-{
-    var connectionString = builder.Configuration.GetConnectionString("MongoConnection");
-    return new MongoClient(connectionString);
-});
+        services.AddSingleton<IMongoDatabase>(sp =>
+        {
+            var client = sp.GetRequiredService<IMongoClient>();
+            return client.GetDatabase("FitnessCalDB");
+        });
 
-builder.Services.AddSingleton<IMongoDatabase>(sp =>
-{
-    var client = sp.GetRequiredService<IMongoClient>();
-    return client.GetDatabase("FitnessCalDB"); // ⚠️ Đặt tên DB thật
-});
+        // -------------------- HttpClient + HttpContext --------------------
+        services.AddHttpClient();
 
-// -------------------- HttpClient + HttpContext --------------------
-builder.Services.AddHttpClient();
-builder.Services.AddHttpContextAccessor();
+        // -------------------- Scan Repository & Service --------------------
+        services.Scan(scan => scan
+            .FromAssemblies(
+                typeof(IUserRepository).Assembly,
+                typeof(UserService).Assembly
+            )
+            .AddClasses()
+            .AsImplementedInterfaces()
+            .WithScopedLifetime());
 
-// -------------------- Scan Repository & Service --------------------
-builder.Services.Scan(scan => scan
-    .FromAssemblies(
-        typeof(IUserRepository).Assembly,   // DAL
-        typeof(UserService).Assembly        // BLL
-    )
-    .AddClasses()
-    .AsImplementedInterfaces()
-    .WithScopedLifetime());
+        // -------------------- UnitOfWork --------------------
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-// -------------------- UnitOfWork --------------------
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+        // -------------------- Settings --------------------
+        services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
+        services.Configure<PayOSSettings>(configuration.GetSection("PayOS"));
+        services.Configure<EmailSettings>(configuration.GetSection("Email"));
+        services.Configure<MealNotificationSettings>(configuration.GetSection("MealNotificationSettings"));
 
-// -------------------- Settings --------------------
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
-builder.Services.Configure<PayOSSettings>(builder.Configuration.GetSection("PayOS"));
-builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
-builder.Services.Configure<MealNotificationSettings>(builder.Configuration.GetSection("MealNotificationSettings"));
+        // -------------------- Worker Services --------------------
+        services.AddScoped<IDailyMealLogGeneratorService, DailyMealLogGeneratorService>();
+        services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
+        services.AddScoped<IMealNotificationSchedulerService, MealNotificationSchedulerService>();
 
-// -------------------- Worker Services --------------------
-builder.Services.AddScoped<IDailyMealLogGeneratorService, DailyMealLogGeneratorService>();
-builder.Services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
-builder.Services.AddScoped<IMealNotificationSchedulerService, MealNotificationSchedulerService>();
+        // ❌ KHÔNG ĐĂNG KÝ AddHostedService nữa
+        // Các worker sẽ được gọi qua [Function] + [TimerTrigger]
+    })
+    .Build();
 
-// OTP Cleanup Worker
-builder.Services.AddHostedService<CleanupUsedOTPWorker>();
-
-// -------------------- Hosted Services --------------------
-builder.Services.AddHostedService<DailyMealLogWorker>();
-builder.Services.AddHostedService<MealNotificationWorker>();
-
-// -------------------- Build & Run --------------------
-var host = builder.Build();
 host.Run();

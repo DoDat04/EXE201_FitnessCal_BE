@@ -1,30 +1,34 @@
-﻿using FitnessCal.Worker.Define;
+﻿using System;
+using System.Threading.Tasks;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using FitnessCal.Worker.Define;
 
-public class DailyMealLogWorker : BackgroundService
+namespace FitnessCal.Worker
 {
-    private readonly ILogger<DailyMealLogWorker> _logger;
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IDailySchedulerService _schedulerService;
-
-    public DailyMealLogWorker(
-        ILogger<DailyMealLogWorker> logger,
-        IServiceScopeFactory scopeFactory,
-        IDailySchedulerService schedulerService)
+    public class DailyMealLogWorker
     {
-        _logger = logger;
-        _scopeFactory = scopeFactory;
-        _schedulerService = schedulerService;
-    }
+        private readonly ILogger<DailyMealLogWorker> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IDailySchedulerService _schedulerService;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        _logger.LogInformation("DailyMealLogWorker started.");
-
-        while (!stoppingToken.IsCancellationRequested)
+        public DailyMealLogWorker(
+            ILogger<DailyMealLogWorker> logger,
+            IServiceScopeFactory scopeFactory,
+            IDailySchedulerService schedulerService)
         {
+            _logger = logger;
+            _scopeFactory = scopeFactory;
+            _schedulerService = schedulerService;
+        }
+
+        // ✅ Runs once every midnight (UTC) — adjust if needed
+        [Function("DailyMealLogWorker")]
+        public async Task RunAsync([TimerTrigger("0 0 0 * * *", RunOnStartup = true)] TimerInfo timer)
+        {
+            _logger.LogInformation("✅ DailyMealLogWorker triggered at: {time}", DateTime.UtcNow);
+
             try
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -32,15 +36,22 @@ public class DailyMealLogWorker : BackgroundService
 
                 await mealLogService.GenerateDailyMealLogsAsync();
 
-                _logger.LogInformation("Daily meal logs generated successfully.");
+                _logger.LogInformation("✅ Daily meal logs generated successfully at {time}.", DateTime.UtcNow);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating daily meal logs");
+                _logger.LogError(ex, "❌ Error generating daily meal logs at {time}", DateTime.UtcNow);
             }
 
-            // Delay tới lần chạy tiếp theo
-            await Task.Delay(_schedulerService.GetDelayUntilNextRun(), stoppingToken);
+            try
+            {
+                var delay = _schedulerService.GetDelayUntilNextRun();
+                _logger.LogInformation("ℹ️ Next scheduled run in: {delay}", delay);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "⚠️ Failed to calculate delay for next run.");
+            }
         }
     }
 }
