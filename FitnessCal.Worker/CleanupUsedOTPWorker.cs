@@ -1,26 +1,31 @@
 ﻿using FitnessCal.BLL.Define;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-public class CleanupUsedOTPWorker : BackgroundService
+namespace FitnessCal.Worker
 {
-    private readonly ILogger<CleanupUsedOTPWorker> _logger;
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly TimeSpan _runInterval = TimeSpan.FromHours(1);
-
-    public CleanupUsedOTPWorker(ILogger<CleanupUsedOTPWorker> logger, IServiceScopeFactory scopeFactory)
+    public class CleanupUsedOTPWorker
     {
-        _logger = logger;
-        _scopeFactory = scopeFactory;
-    }
+        private readonly ILogger<CleanupUsedOTPWorker> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        _logger.LogInformation("CleanupUsedOTPWorker started.");
-
-        while (!stoppingToken.IsCancellationRequested)
+        public CleanupUsedOTPWorker(ILogger<CleanupUsedOTPWorker> logger, IServiceScopeFactory scopeFactory)
         {
+            _logger = logger;
+            _scopeFactory = scopeFactory;
+        }
+
+        // ⚙️ Chạy mỗi giờ để cleanup OTP đã sử dụng và hết hạn
+        [Function("CleanupUsedOTPWorker")]
+        public async Task RunAsync(
+            [TimerTrigger("0 0 * * * *")] TimerInfo timer,
+            FunctionContext context,
+            CancellationToken cancellationToken)
+        {
+            var functionName = context.FunctionDefinition.Name;
+            _logger.LogInformation("🚀 {FunctionName} triggered at: {time}", functionName, DateTimeOffset.UtcNow);
+
             try
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -29,14 +34,12 @@ public class CleanupUsedOTPWorker : BackgroundService
                 await otpService.CleanupUsedOTPsAsync();
                 await otpService.CleanupExpiredOTPsAsync();
 
-                _logger.LogInformation("Used & expired OTPs cleaned up successfully.");
+                _logger.LogInformation("✅ Used & expired OTPs cleaned up successfully at {time}.", DateTimeOffset.UtcNow);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error cleaning up OTPs");
+                _logger.LogError(ex, "❌ Error cleaning up OTPs at {time}", DateTimeOffset.UtcNow);
             }
-
-            await Task.Delay(_runInterval, stoppingToken);
         }
     }
 }

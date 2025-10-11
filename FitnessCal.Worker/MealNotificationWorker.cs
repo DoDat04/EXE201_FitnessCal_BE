@@ -1,13 +1,13 @@
 using FitnessCal.BLL.DTO.CommonDTO;
 using FitnessCal.Worker.Define;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FitnessCal.Worker
 {
-    public class MealNotificationWorker : BackgroundService
+    public class MealNotificationWorker
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<MealNotificationWorker> _logger;
@@ -23,29 +23,31 @@ namespace FitnessCal.Worker
             _settings = settings.Value;
         }
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        // ⚙️ Chạy mỗi phút để kiểm tra và gửi thông báo bữa ăn
+        [Function("MealNotificationWorker")]
+        public async Task RunAsync(
+            [TimerTrigger("0 */1 * * * *")] TimerInfo timer,
+            FunctionContext context,
+            CancellationToken cancellationToken)
         {
-            _logger.LogInformation("MealNotificationWorker started at: {Time}", DateTimeOffset.Now);
-            _logger.LogInformation("Meal notification settings: Breakfast={BreakfastHour}, Lunch={LunchHour}, Dinner={DinnerHour}, Interval={IntervalMinutes}min, Enabled={Enabled}",
-                _settings.BreakfastHour, _settings.LunchHour, _settings.DinnerHour, _settings.CheckIntervalMinutes, _settings.EnableNotifications);
+            var functionName = context.FunctionDefinition.Name;
+            _logger.LogInformation("🚀 {FunctionName} triggered at: {time}", functionName, DateTimeOffset.UtcNow);
 
-            var checkInterval = TimeSpan.FromMinutes(_settings.CheckIntervalMinutes);
-
-            while (!stoppingToken.IsCancellationRequested)
+            if (!_settings.EnableNotifications)
             {
-                try
-                {
-                    await ProcessMealNotificationsAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error occurred in MealNotificationWorker");
-                }
-
-                await Task.Delay(checkInterval, stoppingToken);
+                _logger.LogInformation("ℹ️ Meal notifications are disabled. Skipping execution.");
+                return;
             }
 
-            _logger.LogInformation("MealNotificationWorker stopped at: {Time}", DateTimeOffset.Now);
+            try
+            {
+                await ProcessMealNotificationsAsync();
+                _logger.LogInformation("✅ Meal notifications processed successfully at {time}.", DateTimeOffset.UtcNow);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error processing meal notifications at {time}", DateTimeOffset.UtcNow);
+            }
         }
 
         private async Task ProcessMealNotificationsAsync()
@@ -53,14 +55,7 @@ namespace FitnessCal.Worker
             using var scope = _serviceProvider.CreateScope();
             var mealNotificationScheduler = scope.ServiceProvider.GetRequiredService<IMealNotificationSchedulerService>();
 
-            try
-            {
-                await mealNotificationScheduler.ProcessMealNotificationsAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing meal notifications");
-            }
+            await mealNotificationScheduler.ProcessMealNotificationsAsync();
         }
     }
 }
