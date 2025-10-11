@@ -1,6 +1,7 @@
 ﻿using FitnessCal.DAL.Define;
 using FitnessCal.DAL;
 using FitnessCal.BLL.Define;
+using FitnessCal.BLL.BackgroundService; // DailyMealLogWorker
 using Microsoft.EntityFrameworkCore;
 using FitnessCal.Domain;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -10,9 +11,12 @@ using Microsoft.OpenApi.Models;
 using FitnessCal.BLL.DTO.CommonDTO;
 using MongoDB.Driver;
 using Microsoft.AspNetCore.HttpOverrides;
+using FitnessCal.Worker.Define;
+using FitnessCal.Worker.Implement;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ========== MongoDB ==========
 var mongoConnectionString = builder.Configuration["MongoDB:ConnectionString"];
 var mongoDatabaseName = builder.Configuration["MongoDB:DatabaseName"];
 
@@ -25,6 +29,7 @@ builder.Services.AddScoped<IMongoDatabase>(sp =>
     return client.GetDatabase(mongoDatabaseName);
 });
 
+// ========== PostgreSQL ==========
 builder.Services.AddDbContext<FitnessCalContext>(options =>
 {
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -32,34 +37,39 @@ builder.Services.AddDbContext<FitnessCalContext>(options =>
 
 builder.Services.AddMemoryCache();
 
+// ========== CORS ==========
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin()
      .AllowAnyHeader()
      .AllowAnyMethod()
 ));
 
+// ========== DI Repositories & Services ==========
 builder.Services.Scan(scan => scan
     .FromAssemblies(
-        typeof(IAuthService).Assembly,    
-        typeof(IUserRepository).Assembly   
+        typeof(IAuthService).Assembly,
+        typeof(IUserRepository).Assembly
     )
     .AddClasses()
     .AsImplementedInterfaces()
     .WithScopedLifetime());
 
+// AppSettings
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<PayOSSettings>(builder.Configuration.GetSection("PayOS"));
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
 
 builder.Services.AddHttpClient();
+builder.Services.AddHttpContextAccessor();
 
+// ========== Authentication JWT ==========
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         var secretKey = builder.Configuration["Jwt:AccessSecretKey"]!;
         var issuer = builder.Configuration["Jwt:Issuer"]!;
         var audience = builder.Configuration["Jwt:Audience"]!;
-        
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
@@ -73,29 +83,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             RequireExpirationTime = true,
             ValidateTokenReplay = false
         };
-        
+
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
             {
                 var authorization = context.Request.Headers["Authorization"].FirstOrDefault();
-                
                 if (!string.IsNullOrEmpty(authorization))
                 {
-                    string token;
-                    if (authorization.StartsWith("Bearer "))
-                    {
-                        token = authorization.Substring("Bearer ".Length);
-                    }
-                    else
-                    {
-                        token = authorization;
-                    }
-                    
+                    string token = authorization.StartsWith("Bearer ")
+                        ? authorization["Bearer ".Length..]
+                        : authorization;
                     if (!string.IsNullOrEmpty(token))
-                    {
                         context.Token = token;
-                    }
                 }
                 return Task.CompletedTask;
             }
@@ -103,14 +103,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddControllers();
-builder.Services.AddHttpContextAccessor();
 
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+// ========== Swagger ==========
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "FitnessCal API", Version = "v1" });
-    
+
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
@@ -131,43 +130,47 @@ builder.Services.AddSwaggerGen(c =>
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
 
+// ========== Worker Service ==========
+builder.Services.AddSingleton<DailyMealLogWorker>();
+builder.Services.AddScoped<IDailyMealLogGeneratorService, DailyMealLogGeneratorService>();
+builder.Services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
+
 var app = builder.Build();
+
+// ========== Swagger ==========
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "FitnessCal API v1");
 });
 
-// ✅ Dùng HTTPS redirect khi chạy local, còn Production thì dùng proxy header
+// ========== HTTPS / ForwardedHeaders ==========
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
 else
 {
-    // Azure / Nginx / ContainerApp sẽ gửi header X-Forwarded-Proto
     app.UseForwardedHeaders(new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
     });
 }
 
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
-
+// ========== Middleware ==========
 app.UseCors();
-
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// ⚡ Khởi chạy DailyMealLogWorker khi app start
+var worker = app.Services.GetRequiredService<DailyMealLogWorker>();
+worker.Start();
 
 app.Run();
