@@ -1,10 +1,9 @@
-﻿using FirebaseAdmin;
-using FirebaseAdmin.Messaging;
-using FitnessCal.BLL.Define;
-using Google.Apis.Auth.OAuth2;
+﻿using FirebaseAdmin.Messaging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using System.Text;
+using FitnessCal.BLL.Define;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 
 namespace FitnessCal.BLL.Implement
 {
@@ -13,61 +12,40 @@ namespace FitnessCal.BLL.Implement
         private readonly FirebaseMessaging _firebaseMessaging;
         private readonly ILogger<FirebaseService> _logger;
         private readonly string _projectId;
-        private static readonly object _lock = new();
 
         public FirebaseService(IConfiguration configuration, ILogger<FirebaseService> logger)
         {
             _logger = logger;
-            _projectId = configuration["Firebase:ProjectId"]
-                ?? throw new InvalidOperationException("Firebase ProjectId not configured");
+            _projectId = configuration["Firebase:ProjectId"] ?? throw new InvalidOperationException("Firebase ProjectId not configured");
 
-            lock (_lock)
+            if (FirebaseApp.DefaultInstance == null)
             {
-                if (FirebaseApp.DefaultInstance == null)
+                var serviceAccountPath = configuration["Firebase:ServiceAccountKeyPath"];
+                if (string.IsNullOrEmpty(serviceAccountPath))
                 {
-                    try
+                    throw new InvalidOperationException("Firebase ServiceAccountKeyPath not configured");
+                }
+
+                var fullPath = Path.Combine(Directory.GetCurrentDirectory(), serviceAccountPath);
+                if (!File.Exists(fullPath))
+                {
+                    throw new FileNotFoundException($"Firebase service account file not found: {fullPath}");
+                }
+
+                try
+                {
+                    FirebaseApp.Create(new AppOptions
                     {
-                        var serviceAccountPath = configuration["Firebase:ServiceAccountKeyPath"];
-                        var firebaseJson = configuration["Firebase:ServiceAccountJson"];
-                        // Cho phép chọn giữa file hoặc JSON chuỗi
+                        Credential = GoogleCredential.FromFile(fullPath),
+                        ProjectId = _projectId
+                    });
 
-                        GoogleCredential credential;
-
-                        if (!string.IsNullOrEmpty(firebaseJson))
-                        {
-                            // ✅ Dành cho trường hợp lưu JSON trong App Settings (Azure)
-                            firebaseJson = firebaseJson.Replace("\\n", "\n");
-                            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(firebaseJson));
-                            credential = GoogleCredential.FromStream(stream);
-                        }
-                        else if (!string.IsNullOrEmpty(serviceAccountPath))
-                        {
-                            // ✅ Dành cho trường hợp đọc từ file
-                            var fullPath = Path.Combine(AppContext.BaseDirectory, serviceAccountPath);
-                            if (!File.Exists(fullPath))
-                            {
-                                throw new FileNotFoundException($"Firebase service account file not found: {fullPath}");
-                            }
-                            credential = GoogleCredential.FromFile(fullPath);
-                        }
-                        else
-                        {
-                            throw new InvalidOperationException("Firebase configuration missing (ServiceAccountKeyPath or ServiceAccountJson)");
-                        }
-
-                        FirebaseApp.Create(new AppOptions
-                        {
-                            Credential = credential,
-                            ProjectId = _projectId
-                        });
-
-                        _logger.LogInformation("✅ Firebase Admin SDK initialized successfully for project: {ProjectId}", _projectId);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "❌ Failed to initialize Firebase Admin SDK");
-                        throw new InvalidOperationException("Failed to initialize Firebase Admin SDK", ex);
-                    }
+                    _logger.LogInformation("Firebase Admin SDK initialized successfully for project: {ProjectId}", _projectId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to initialize Firebase Admin SDK");
+                    throw new InvalidOperationException("Failed to initialize Firebase Admin SDK", ex);
                 }
             }
 
@@ -95,14 +73,15 @@ namespace FitnessCal.BLL.Implement
                 };
 
                 var response = await _firebaseMessaging.SendAsync(notification);
-                _logger.LogInformation("📩 Firebase notification sent successfully: {Response} to token: {Token}",
+
+                _logger.LogInformation("Firebase notification sent successfully: {Response} to token: {Token}",
                     response, fcmToken);
 
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "⚠️ Error sending Firebase notification to token: {Token}", fcmToken);
+                _logger.LogError(ex, "Error sending Firebase notification to token: {Token}", fcmToken);
                 return false;
             }
         }
