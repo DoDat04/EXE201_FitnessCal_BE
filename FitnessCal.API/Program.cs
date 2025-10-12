@@ -183,6 +183,7 @@ app.MapControllers();
 
 // ⚡ Khởi chạy DailyMealLogWorker khi app start
 var worker = app.Services.GetRequiredService<DailyMealLogWorker>();
+var worker1= app.Services.GetRequiredService<MealNotificationWorker>();
 worker.Start();
-
+worker1?.Start();
 app.Run();
