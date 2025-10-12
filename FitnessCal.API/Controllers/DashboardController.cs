@@ -57,11 +57,13 @@ namespace FitnessCal.API.Controllers
 
         // New: Revenue statistics endpoint
         [HttpGet("revenue-statistics")]
-        public async Task<ActionResult<ApiResponse<RevenueStatisticsDTO>>> GetRevenueStatistics()
+        public async Task<ActionResult<ApiResponse<RevenueStatisticsDTO>>> GetRevenueStatistics(
+            [FromQuery] DateTime? startDate = null, 
+            [FromQuery] DateTime? endDate = null)
         {
             try
             {
-                var statistics = await _userService.GetRevenueStatisticsAsync();
+                var statistics = await _userService.GetRevenueStatisticsAsync(startDate, endDate);
 
                 var response = new ApiResponse<RevenueStatisticsDTO>
                 {

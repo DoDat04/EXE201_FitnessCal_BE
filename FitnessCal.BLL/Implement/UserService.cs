@@ -225,7 +225,7 @@ namespace FitnessCal.BLL.Implement
             }
         }
 
-        public async Task<RevenueStatisticsDTO> GetRevenueStatisticsAsync()
+        public async Task<RevenueStatisticsDTO> GetRevenueStatisticsAsync(DateTime? startDate = null, DateTime? endDate = null)
         {
             try
             {
@@ -273,6 +273,43 @@ namespace FitnessCal.BLL.Implement
                     ? (double)((totalRevenueYTD - totalRevenueYTDLastYear) / totalRevenueYTDLastYear) * 100
                     : 0;
 
+                // Xử lý date range
+                decimal revenueInRange = 0;
+                int subscriptionCountInRange = 0;
+                var dailyRevenues = new List<DailyRevenueDTO>();
+
+                if (startDate.HasValue && endDate.HasValue)
+                {
+                    // Đảm bảo endDate bao gồm cả ngày cuối
+                    var adjustedEndDate = endDate.Value.Date.AddDays(1).AddTicks(-1);
+                    
+                    var subscriptionsInRange = allSubscriptions
+                        .Where(s => s.StartDate >= startDate.Value && s.StartDate <= adjustedEndDate)
+                        .ToList();
+
+                    revenueInRange = subscriptionsInRange.Sum(s => s.PriceAtPurchase);
+                    subscriptionCountInRange = subscriptionsInRange.Count;
+
+                    // Tạo dữ liệu theo ngày
+                    var currentDate = startDate.Value.Date;
+                    while (currentDate <= endDate.Value.Date)
+                    {
+                        var nextDate = currentDate.AddDays(1);
+                        var daySubscriptions = subscriptionsInRange
+                            .Where(s => s.StartDate >= currentDate && s.StartDate < nextDate)
+                            .ToList();
+
+                        dailyRevenues.Add(new DailyRevenueDTO
+                        {
+                            Date = currentDate,
+                            Revenue = daySubscriptions.Sum(s => s.PriceAtPurchase),
+                            SubscriptionCount = daySubscriptions.Count
+                        });
+
+                        currentDate = nextDate;
+                    }
+                }
+
                 return new RevenueStatisticsDTO
                 {
                     TotalRevenue = totalRevenue,
@@ -282,7 +319,12 @@ namespace FitnessCal.BLL.Implement
                     RevenueGrowthPercentage = Math.Round(revenueGrowthPercentage, 1),
                     TotalRevenueYTD = totalRevenueYTD,
                     TotalRevenueYTDLastYear = totalRevenueYTDLastYear,
-                    TotalRevenueYTDGrowthPercentage = Math.Round(totalRevenueYTDGrowthPercentage, 1)
+                    TotalRevenueYTDGrowthPercentage = Math.Round(totalRevenueYTDGrowthPercentage, 1),
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    RevenueInRange = revenueInRange,
+                    SubscriptionCountInRange = subscriptionCountInRange,
+                    DailyRevenues = dailyRevenues
                 };
             }
             catch (Exception ex)

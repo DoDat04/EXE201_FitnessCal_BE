@@ -16,7 +16,7 @@ namespace FitnessCal.BLL.Define
 
         Task<IEnumerable<UserResponseDTO>> GetUsersWithoutMealLogAsync(DateOnly today);
 
-        Task<RevenueStatisticsDTO> GetRevenueStatisticsAsync();
+        Task<RevenueStatisticsDTO> GetRevenueStatisticsAsync(DateTime? startDate = null, DateTime? endDate = null);
 
     }
 }

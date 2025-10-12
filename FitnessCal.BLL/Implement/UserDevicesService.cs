@@ -51,33 +51,45 @@ namespace FitnessCal.BLL.Implement
         {
             try
             {
-                // Kiểm tra xem device đã tồn tại chưa
-                var existingDevice = await _userDevicesRepository.GetByUserIdAndTokenAsync(userId, request.FcmToken);
-                if (existingDevice != null)
+                // Kiểm tra xem user đã có device nào chưa
+                var existingDevices = await _userDevicesRepository.GetByUserIdAsync(userId);
+                
+                if (existingDevices.Any())
                 {
-                    // Reactivate device nếu đã tồn tại nhưng inactive
-                    if (!existingDevice.IsActive)
+                    // Nếu user đã có device, ghi đè token mới vào device đầu tiên
+                    var deviceToUpdate = existingDevices.First();
+                    deviceToUpdate.FcmToken = request.FcmToken;
+                    deviceToUpdate.DeviceType = request.DeviceType;
+                    deviceToUpdate.DeviceName = request.DeviceName;
+                    deviceToUpdate.IsActive = true;
+                    
+                    var updatedDevice = await _userDevicesRepository.UpdateAsync(deviceToUpdate);
+                    
+                    // Deactivate các device khác của user này để tránh duplicate
+                    foreach (var device in existingDevices.Skip(1))
                     {
-                        existingDevice.IsActive = true;
-                        existingDevice.DeviceType = request.DeviceType;
-                        existingDevice.DeviceName = request.DeviceName;
-                        existingDevice = await _userDevicesRepository.UpdateAsync(existingDevice);
+                        await _userDevicesRepository.DeactivateDeviceAsync(device.Id);
                     }
-                    return MapToDTO(existingDevice);
+                    
+                    _logger.LogInformation("Updated existing device for user {UserId} with new FCM token", userId);
+                    return MapToDTO(updatedDevice);
                 }
-
-                // Tạo device mới
-                var device = new UserDevices
+                else
                 {
-                    UserId = userId,
-                    FcmToken = request.FcmToken,
-                    DeviceType = request.DeviceType,
-                    DeviceName = request.DeviceName,
-                    IsActive = true
-                };
+                    // Tạo device mới nếu user chưa có device nào
+                    var device = new UserDevices
+                    {
+                        UserId = userId,
+                        FcmToken = request.FcmToken,
+                        DeviceType = request.DeviceType,
+                        DeviceName = request.DeviceName,
+                        IsActive = true
+                    };
 
-                var createdDevice = await _userDevicesRepository.CreateAsync(device);
-                return MapToDTO(createdDevice);
+                    var createdDevice = await _userDevicesRepository.CreateAsync(device);
+                    _logger.LogInformation("Created new device for user {UserId}", userId);
+                    return MapToDTO(createdDevice);
+                }
             }
             catch (Exception ex)
             {
@@ -207,6 +219,7 @@ namespace FitnessCal.BLL.Implement
                 return false;
             }
         }
+
 
         private static UserDevicesDTO MapToDTO(UserDevices device)
         {

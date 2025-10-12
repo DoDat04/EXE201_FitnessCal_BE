@@ -12,6 +12,13 @@ namespace FitnessCal.BLL.DTO.DashboardDTO.Response
         public decimal TotalRevenueYTD { get; set; }
         public decimal TotalRevenueYTDLastYear { get; set; }
         public double TotalRevenueYTDGrowthPercentage { get; set; }
+        
+        // Date range data
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public decimal RevenueInRange { get; set; }
+        public int SubscriptionCountInRange { get; set; }
+        public List<DailyRevenueDTO> DailyRevenues { get; set; } = new List<DailyRevenueDTO>();
     }
 }
 
