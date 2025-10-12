@@ -20,25 +20,40 @@ namespace FitnessCal.BLL.Implement
 
             if (FirebaseApp.DefaultInstance == null)
             {
-                var serviceAccountPath = configuration["Firebase:ServiceAccountKeyPath"];
-                if (string.IsNullOrEmpty(serviceAccountPath))
-                {
-                    throw new InvalidOperationException("Firebase ServiceAccountKeyPath not configured");
-                }
-
-                var fullPath = Path.Combine(Directory.GetCurrentDirectory(), serviceAccountPath);
-                if (!File.Exists(fullPath))
-                {
-                    throw new FileNotFoundException($"Firebase service account file not found: {fullPath}");
-                }
-
                 try
                 {
-                    FirebaseApp.Create(new AppOptions
+                    FirebaseApp app;
+                    var serviceAccountJson = configuration["Firebase:ServiceAccountKey"]; // JSON dạng chuỗi (Azure)
+                    var serviceAccountPath = configuration["Firebase:ServiceAccountKeyPath"]; // file local
+
+                    if (!string.IsNullOrEmpty(serviceAccountJson))
                     {
-                        Credential = GoogleCredential.FromFile(fullPath),
-                        ProjectId = _projectId
-                    });
+                        // ✅ Trường hợp dùng biến môi trường (Azure)
+                        app = FirebaseApp.Create(new AppOptions
+                        {
+                            Credential = GoogleCredential.FromJson(serviceAccountJson),
+                            ProjectId = _projectId
+                        });
+                        _logger.LogInformation("Firebase initialized using JSON from environment variable.");
+                    }
+                    else if (!string.IsNullOrEmpty(serviceAccountPath))
+                    {
+                        // ✅ Trường hợp chạy local (file thật)
+                        var fullPath = Path.Combine(Directory.GetCurrentDirectory(), serviceAccountPath);
+                        if (!File.Exists(fullPath))
+                            throw new FileNotFoundException($"Firebase service account file not found: {fullPath}");
+
+                        app = FirebaseApp.Create(new AppOptions
+                        {
+                            Credential = GoogleCredential.FromFile(fullPath),
+                            ProjectId = _projectId
+                        });
+                        _logger.LogInformation("Firebase initialized using local file: {Path}", fullPath);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("Neither Firebase:ServiceAccountKey nor Firebase:ServiceAccountKeyPath configured");
+                    }
 
                     _logger.LogInformation("Firebase Admin SDK initialized successfully for project: {ProjectId}", _projectId);
                 }
