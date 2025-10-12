@@ -70,6 +70,7 @@ builder.Services.Scan(scan => scan
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.Configure<PayOSSettings>(builder.Configuration.GetSection("PayOS"));
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Email"));
+builder.Services.Configure<MealNotificationSettings>(builder.Configuration.GetSection("MealNotificationSettings"));
 
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
