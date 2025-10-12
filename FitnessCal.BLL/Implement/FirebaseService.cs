@@ -1,9 +1,11 @@
-﻿using FirebaseAdmin.Messaging;
+﻿using FirebaseAdmin;
+using FirebaseAdmin.Messaging;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using FitnessCal.BLL.Define;
-using FirebaseAdmin;
-using Google.Apis.Auth.OAuth2;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace FitnessCal.BLL.Implement
 {
@@ -16,30 +18,35 @@ namespace FitnessCal.BLL.Implement
         public FirebaseService(IConfiguration configuration, ILogger<FirebaseService> logger)
         {
             _logger = logger;
-            _projectId = configuration["Firebase:ProjectId"] ?? throw new InvalidOperationException("Firebase ProjectId not configured");
+            _projectId = configuration["Firebase:ProjectId"]
+                         ?? throw new InvalidOperationException("Firebase ProjectId not configured.");
 
-            if (FirebaseApp.DefaultInstance == null)
+            try
             {
-                try
+                // 🔹 Chỉ tạo FirebaseApp nếu chưa tồn tại
+                if (FirebaseApp.DefaultInstance == null)
                 {
+                    var serviceAccountJson = configuration["Firebase:ServiceAccountKey"];   // JSON dạng chuỗi (Azure)
+                    var serviceAccountPath = configuration["Firebase:ServiceAccountKeyPath"]; // File local
+
                     FirebaseApp app;
-                    var serviceAccountJson = configuration["Firebase:ServiceAccountKey"]; // JSON dạng chuỗi (Azure)
-                    var serviceAccountPath = configuration["Firebase:ServiceAccountKeyPath"]; // file local
 
                     if (!string.IsNullOrEmpty(serviceAccountJson))
                     {
-                        // ✅ Trường hợp dùng biến môi trường (Azure)
+                        // ✅ Trường hợp chạy trên Azure (dùng biến môi trường)
                         app = FirebaseApp.Create(new AppOptions
                         {
                             Credential = GoogleCredential.FromJson(serviceAccountJson),
                             ProjectId = _projectId
                         });
+
                         _logger.LogInformation("Firebase initialized using JSON from environment variable.");
                     }
                     else if (!string.IsNullOrEmpty(serviceAccountPath))
                     {
-                        // ✅ Trường hợp chạy local (file thật)
+                        // ✅ Trường hợp chạy local (dùng file JSON)
                         var fullPath = Path.Combine(Directory.GetCurrentDirectory(), serviceAccountPath);
+
                         if (!File.Exists(fullPath))
                             throw new FileNotFoundException($"Firebase service account file not found: {fullPath}");
 
@@ -48,36 +55,43 @@ namespace FitnessCal.BLL.Implement
                             Credential = GoogleCredential.FromFile(fullPath),
                             ProjectId = _projectId
                         });
+
                         _logger.LogInformation("Firebase initialized using local file: {Path}", fullPath);
                     }
                     else
                     {
-                        throw new InvalidOperationException("Neither Firebase:ServiceAccountKey nor Firebase:ServiceAccountKeyPath configured");
+                        throw new InvalidOperationException(
+                            "Neither Firebase:ServiceAccountKey nor Firebase:ServiceAccountKeyPath configured.");
                     }
 
                     _logger.LogInformation("Firebase Admin SDK initialized successfully for project: {ProjectId}", _projectId);
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.LogError(ex, "Failed to initialize Firebase Admin SDK");
-                    throw new InvalidOperationException("Failed to initialize Firebase Admin SDK", ex);
+                    _logger.LogInformation("FirebaseApp already initialized — using existing instance.");
                 }
-            }
 
-            _firebaseMessaging = FirebaseMessaging.DefaultInstance;
+                // 🔹 Luôn gán instance cho FirebaseMessaging
+                _firebaseMessaging = FirebaseMessaging.DefaultInstance;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to initialize Firebase Admin SDK.");
+                throw new InvalidOperationException("Failed to initialize Firebase Admin SDK.", ex);
+            }
         }
 
         public async Task<bool> SendNotificationAsync(string fcmToken, string title, string body)
         {
+            if (string.IsNullOrEmpty(fcmToken))
+            {
+                _logger.LogWarning("FCM token is empty or null.");
+                return false;
+            }
+
             try
             {
-                if (string.IsNullOrEmpty(fcmToken))
-                {
-                    _logger.LogWarning("FCM token is empty");
-                    return false;
-                }
-
-                var notification = new Message
+                var message = new Message
                 {
                     Token = fcmToken,
                     Notification = new FirebaseAdmin.Messaging.Notification
@@ -87,11 +101,9 @@ namespace FitnessCal.BLL.Implement
                     }
                 };
 
-                var response = await _firebaseMessaging.SendAsync(notification);
+                var response = await _firebaseMessaging.SendAsync(message);
 
-                _logger.LogInformation("Firebase notification sent successfully: {Response} to token: {Token}",
-                    response, fcmToken);
-
+                _logger.LogInformation("Firebase notification sent successfully: {Response} to token: {Token}", response, fcmToken);
                 return true;
             }
             catch (Exception ex)
