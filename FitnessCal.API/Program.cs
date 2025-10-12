@@ -149,9 +149,9 @@ builder.Services.AddSwaggerGen(c =>
 
 // ========== Worker Service ==========
 builder.Services.AddSingleton<DailyMealLogWorker>();
+builder.Services.AddSingleton<MealNotificationWorker>(); // ✅ thêm dòng này
 builder.Services.AddScoped<IDailyMealLogGeneratorService, DailyMealLogGeneratorService>();
 builder.Services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
-
 var app = builder.Build();
 
 // ========== Swagger ==========
