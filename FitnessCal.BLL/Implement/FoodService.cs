@@ -156,70 +156,122 @@ public class FoodService : IFoodService
             : await _unitOfWork.Foods.FindAllAsync(f => f.Name.ToLower().Contains(name.ToLower()));
     }
 
+    public async Task<IEnumerable<PredefinedDish?>> SearchPredefinedDishByNameAsync(string name)
+    {
+        return await _unitOfWork.PredefinedDishes.FirstOrDefaultAsync(d => d.Name.ToLower() == name.ToLower()) != null
+            ? new List<PredefinedDish?> { await _unitOfWork.PredefinedDishes.FirstOrDefaultAsync(d => d.Name.ToLower() == name.ToLower()) }!
+            : await _unitOfWork.PredefinedDishes.FindAllAsync(d => d.Name.ToLower().Contains(name.ToLower()));
+    }
+
     public async Task<string> GenerateFoodsInformationAsync(string userPrompt)
     {
         Guid userId = GetCurrentUserId();
         var normalizedPrompt = TransformUserQuery(userPrompt);
 
-        // 1. Parse keywords
+        // 1. Tách keywords
         var keywords = normalizedPrompt
             .Split(new[] { ",", " và ", "&" }, StringSplitOptions.RemoveEmptyEntries)
             .Select(k => k.Trim())
             .ToList();
 
         List<Food> foods = new();
+        List<PredefinedDish> dishes = new();
 
-        // 2. Tìm foods
+        // 2. Tìm kiếm foods và predefined dishes
         if (keywords.Count > 1)
         {
             foreach (var key in keywords)
             {
                 var matchedFoods = await _unitOfWork.Foods.FindAllAsync(
-                    f => f.Name.ToLower() == key || f.Name.ToLower().Contains(key)
+                    f => f.Name.ToLower() == key.ToLower() || f.Name.ToLower().Contains(key.ToLower())
                 );
                 foods.AddRange(matchedFoods);
+
+                var matchedDishes = await _unitOfWork.PredefinedDishes.FindAllAsync(
+                    d => d.Name.ToLower() == key.ToLower() || d.Name.ToLower().Contains(key.ToLower())
+                );
+                dishes.AddRange(matchedDishes);
             }
         }
         else
         {
-            var exactFood = await _unitOfWork.Foods.FindAsync(f => f.Name.ToLower() == normalizedPrompt);
-            if (exactFood != null)
-            {
-                foods.Add(exactFood);
-            }
+            var exactFood = await _unitOfWork.Foods.FindAsync(f => f.Name.ToLower() == normalizedPrompt.ToLower());
+            if (exactFood != null) foods.Add(exactFood);
             else
             {
                 var matchedFoods = await _unitOfWork.Foods.FindAllAsync(
-                    f => f.Name.ToLower().Contains(normalizedPrompt)
+                    f => f.Name.ToLower().Contains(normalizedPrompt.ToLower())
                 );
                 foods.AddRange(matchedFoods);
             }
+
+            var exactDish = await _unitOfWork.PredefinedDishes.FindAsync(d => d.Name.ToLower() == normalizedPrompt.ToLower());
+            if (exactDish != null) dishes.Add(exactDish);
+            else
+            {
+                var matchedDishes = await _unitOfWork.PredefinedDishes.FindAllAsync(
+                    d => d.Name.ToLower().Contains(normalizedPrompt.ToLower())
+                );
+                dishes.AddRange(matchedDishes);
+            }
         }
 
-        if (!foods.Any())
+        if (!foods.Any() && !dishes.Any())
             throw new InvalidOperationException("Món ăn không có trong database. Vui lòng thử món khác.");
 
-        var dtoList = foods
+        // 3. Chuyển sang SearchFoodResponseDTO
+        var searchDtos = foods
             .DistinctBy(f => f.FoodId)
-            .Select(f => new FoodResponseDTO
+            .Select(f => new SearchFoodResponseDTO
             {
-                FoodId = f.FoodId,
+                Id = f.FoodId,
                 Name = f.Name,
                 Calories = f.Calories,
                 Carbs = f.Carbs,
                 Fat = f.Fat,
-                Protein = f.Protein
+                Protein = f.Protein,
+                ServingUnit = null,
+                SourceType = "Food",
+                FoodId = f.FoodId,
+                DishId = null
             })
             .ToList();
 
-        var prompt = GenerateFoodPrompt(dtoList);
+        searchDtos.AddRange(dishes
+            .DistinctBy(d => d.DishId)
+            .Select(d => new SearchFoodResponseDTO
+            {
+                Id = d.DishId,
+                Name = d.Name,
+                Calories = d.Calories,
+                Carbs = d.Carbs,
+                Fat = d.Fat,
+                Protein = d.Protein,
+                ServingUnit = d.ServingUnit,
+                SourceType = "PredefinedDish",
+                FoodId = null,
+                DishId = d.DishId
+            }));
+
+        // 4. Chuyển sang FoodResponseDTO để tạo prompt AI
+        var promptDtos = searchDtos.Select(d => new FoodResponseDTO
+        {
+            FoodId = d.FoodId ?? d.DishId ?? 0,
+            Name = d.Name,
+            Calories = d.Calories,
+            Carbs = d.Carbs,
+            Fat = d.Fat,
+            Protein = d.Protein
+        }).ToList();
+
+        var prompt = GenerateFoodPrompt(promptDtos);
 
         var aiResponse = await _geminiService.GenerateFoodsAsync(prompt);
 
         if (string.IsNullOrWhiteSpace(aiResponse))
             throw new InvalidOperationException("Gemini API không trả về dữ liệu hợp lệ.");
 
-        // 📌 Xác định Id document theo ngày
+        // 5. Lưu lịch sử chat
         var today = DateTime.UtcNow.Date;
         var chatMessage = await _chatMessageRepository.GetByUserAndDateAsync(userId, today);
 
@@ -249,7 +301,6 @@ public class FoodService : IFoodService
 
         return aiResponse;
     }
-
 
     private static string GenerateFoodPrompt(IEnumerable<FoodResponseDTO> foods)
     {
@@ -334,7 +385,7 @@ public class FoodService : IFoodService
 
         try
         {
-            // 1. Upload file lên Supabase, custom tên file theo id người dùng và timestamp
+            // 1. Upload file lên Supabase
             var fileName = $"{GetCurrentUserId()}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{request.File.FileName}";
 
             byte[] fileBytes;
@@ -372,11 +423,7 @@ public class FoodService : IFoodService
             // 4. Chuẩn hóa & tách text → nhiều món ăn
             var detectedFoods = response
                 .Split(new[] { ',', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x
-                    .Replace("*", "")   
-                    .Replace("-", "")   
-                    .Trim()
-                    .ToLower())
+                .Select(x => x.Replace("*", "").Replace("-", "").Trim().ToLower())
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .ToList();
 
@@ -392,33 +439,65 @@ public class FoodService : IFoodService
 
             // 5. Check DB & cộng dinh dưỡng
             double totalCalories = 0, totalCarbs = 0, totalFat = 0, totalProtein = 0;
-            var foundFoods = new List<FoodResponseDTO>();
+            var foundFoods = new List<SearchFoodResponseDTO>();
             var notFoundFoods = new List<string>();
 
-            foreach (var foodName in detectedFoods)
+            foreach (var name in detectedFoods)
             {
-                var foods = await SearchFoodByNameAsync(foodName);
-                var food = foods?.FirstOrDefault();
-                if (food != null)
-                {
-                    totalCalories += food.Calories;
-                    totalCarbs += food.Carbs;
-                    totalFat += food.Fat;
-                    totalProtein += food.Protein;
+                var foods = await SearchFoodByNameAsync(name);
+                var dishes = await SearchPredefinedDishByNameAsync(name);
 
-                    foundFoods.Add(new FoodResponseDTO
+                if (foods.Any())
+                {
+                    foreach (var f in foods)
                     {
-                        FoodId = food.FoodId,
-                        Name = food.Name,
-                        Calories = food.Calories,
-                        Carbs = food.Carbs,
-                        Fat = food.Fat,
-                        Protein = food.Protein
-                    });
+                        totalCalories += f!.Calories;
+                        totalCarbs += f.Carbs;
+                        totalFat += f.Fat;
+                        totalProtein += f.Protein;
+
+                        foundFoods.Add(new SearchFoodResponseDTO
+                        {
+                            Id = f.FoodId,
+                            Name = f.Name,
+                            Calories = f.Calories,
+                            Carbs = f.Carbs,
+                            Fat = f.Fat,
+                            Protein = f.Protein,
+                            ServingUnit = null,
+                            SourceType = "Food",
+                            FoodId = f.FoodId,
+                            DishId = null
+                        });
+                    }
+                }
+                else if (dishes.Any())
+                {
+                    foreach (var d in dishes)
+                    {
+                        totalCalories += d!.Calories;
+                        totalCarbs += d.Carbs;
+                        totalFat += d.Fat;
+                        totalProtein += d.Protein;
+
+                        foundFoods.Add(new SearchFoodResponseDTO
+                        {
+                            Id = d.DishId,
+                            Name = d.Name,
+                            Calories = d.Calories,
+                            Carbs = d.Carbs,
+                            Fat = d.Fat,
+                            Protein = d.Protein,
+                            ServingUnit = d.ServingUnit,
+                            SourceType = "PredefinedDish",
+                            FoodId = null,
+                            DishId = d.DishId
+                        });
+                    }
                 }
                 else
                 {
-                    notFoundFoods.Add(foodName);
+                    notFoundFoods.Add(name);
                 }
             }
 
@@ -527,5 +606,41 @@ public class FoodService : IFoodService
             _logger.LogError(ex, "Error occurred while getting food details for id {Id} and type {Type}", id, type);
             throw;
         }
+    }
+    public async Task<List<AddFoodResponseDTO>> AddFoodInformationAsync(List<AddFoodRequestDTO> foods)
+    {
+        if (foods == null || !foods.Any())
+            return new List<AddFoodResponseDTO>();
+
+        // Chuyển đổi DTO sang entity, **không gán FoodId**
+        var foodEntities = foods.Select(f => new Food
+        {
+            Name = f.Name,
+            Calories = f.Calories,
+            Carbs = f.Carbs,
+            Fat = f.Fat,
+            Protein = f.Protein,
+            FoodCategory = f.FoodCategory
+        }).ToList();
+
+        // Thêm nhiều entity cùng lúc
+        await _unitOfWork.Foods.AddRangeAsync(foodEntities);
+
+        // Lưu thay đổi, EF Core sẽ tự điền FoodId từ DB
+        await _unitOfWork.Save();
+
+        // Chuyển entity vừa lưu sang DTO, FoodId đã có giá trị từ DB
+        var response = foodEntities.Select(f => new AddFoodResponseDTO
+        {
+            FoodId = f.FoodId,
+            Name = f.Name,
+            Calories = f.Calories,
+            Carbs = f.Carbs,
+            Fat = f.Fat,
+            Protein = f.Protein,
+            FoodCategory = f.FoodCategory
+        }).ToList();
+
+        return response;
     }
 }

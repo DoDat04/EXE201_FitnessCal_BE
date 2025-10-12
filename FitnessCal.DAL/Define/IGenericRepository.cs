@@ -18,5 +18,6 @@ namespace FitnessCal.DAL.Define
         Task<T?> FindAsync(Expression<Func<T, bool>> predicate);
         Task<List<T>> FindAllAsync(Expression<Func<T, bool>> predicate);
         Task<int> SaveChangesAsync();
+        Task AddRangeAsync(IEnumerable<T> entities);
     }
 }

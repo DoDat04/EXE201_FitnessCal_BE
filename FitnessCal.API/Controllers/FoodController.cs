@@ -78,7 +78,7 @@ namespace FitnessCal.API.Controllers
                 return StatusCode(500, new { error = ex.Message });
             }
         }
-        
+
         [HttpGet("search")]
         public async Task<ActionResult<ApiResponse<SearchFoodPaginationResponseDTO>>> SearchFoods([FromQuery] string? search = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 15)
         {
@@ -245,7 +245,7 @@ namespace FitnessCal.API.Controllers
                 });
             }
         }
-        
+
         [HttpGet("search-food-by-name")]
         public async Task<ActionResult<ApiResponse<IEnumerable<FoodResponseDTO?>>>> SearchFoodByName([FromQuery] string name)
         {
@@ -289,6 +289,50 @@ namespace FitnessCal.API.Controllers
             {
                 _logger.LogError(ex, "Error occurred while searching food by name '{Name}'", name);
                 return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<FoodResponseDTO>
+                {
+                    Success = false,
+                    Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                    Data = null
+                });
+            }
+        }
+
+        [HttpPost("add-multiple")]
+        public async Task<ActionResult<ApiResponse<List<AddFoodResponseDTO>>>> AddMultipleFoods([FromBody] List<AddFoodRequestDTO> foods)
+        {
+            try
+            {
+                if (foods == null || !foods.Any())
+                {
+                    return StatusCode(ResponseCodes.StatusCodes.BAD_REQUEST, new ApiResponse<List<AddFoodResponseDTO>>
+                    {
+                        Success = false,
+                        Message = "Food list cannot be empty",
+                        Data = null
+                    });
+                }
+                var addedFoods = await _foodService.AddFoodInformationAsync(foods);
+                return StatusCode(ResponseCodes.StatusCodes.CREATED, new ApiResponse<List<AddFoodResponseDTO>>
+                {
+                    Success = true,
+                    Message = $"{addedFoods.Count} foods added successfully",
+                    Data = addedFoods
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid argument in AddMultipleFoods: {Message}", ex.Message);
+                return StatusCode(ResponseCodes.StatusCodes.BAD_REQUEST, new ApiResponse<List<AddFoodResponseDTO>>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while adding multiple foods");
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR, new ApiResponse<List<AddFoodResponseDTO>>
                 {
                     Success = false,
                     Message = ResponseCodes.Messages.INTERNAL_ERROR,

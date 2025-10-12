@@ -9,7 +9,9 @@ namespace FitnessCal.BLL.Define
     public interface IFoodService
     {
         Task<SearchFoodPaginationResponseDTO> SearchFoodsAsync(string? searchTerm = null, int page = 1, int pageSize = 15);
+        Task<List<AddFoodResponseDTO>> AddFoodInformationAsync(List<AddFoodRequestDTO> foods);
         Task<IEnumerable<Food?>> SearchFoodByNameAsync(string name);
+        Task<IEnumerable<PredefinedDish?>> SearchPredefinedDishByNameAsync(string name);
         Task<string> GenerateFoodsInformationAsync(string prompt);
         Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request);
         Task<SearchFoodResponseDTO> GetFoodDetailsAsync(int id, string type);

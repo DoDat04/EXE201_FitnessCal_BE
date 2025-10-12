@@ -88,5 +88,9 @@ namespace FitnessCal.DAL.Implement
 
             return await query.FirstOrDefaultAsync(predicate);
         }
+        public async Task AddRangeAsync(IEnumerable<T> entities)
+        {
+            await _dbSet.AddRangeAsync(entities);
+        }
     }
 }
