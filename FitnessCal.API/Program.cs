@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
 using FitnessCal.BLL.DTO.CommonDTO;
+using FitnessCal.BLL.Tools;
 using MongoDB.Driver;
 using Microsoft.AspNetCore.HttpOverrides;
 using FitnessCal.Worker.Define;
@@ -65,6 +66,14 @@ builder.Services.Scan(scan => scan
     .AddClasses()
     .AsImplementedInterfaces()
     .WithScopedLifetime());
+
+// Scan Transformers
+builder.Services.Scan(scan => scan
+    .FromAssemblyOf<TransformQueries>()
+    .AddClasses(classes => classes.InNamespaceOf<TransformQueries>())
+    .AsSelf()
+    .WithScopedLifetime()
+);
 
 // AppSettings
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
