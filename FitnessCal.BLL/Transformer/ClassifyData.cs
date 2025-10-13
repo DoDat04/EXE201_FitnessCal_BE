@@ -1,6 +1,6 @@
 ﻿using FitnessCal.BLL.Define;
 
-namespace FitnessCal.BLL.Tools;
+namespace FitnessCal.BLL.Transformer;
 
 public class ClassifyData
 {

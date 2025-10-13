@@ -9,9 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
-using System.Text;
-using FitnessCal.BLL.Tools;
-
+using FitnessCal.BLL.Transformer;
 
 namespace FitnessCal.BLL.Implement;
 
@@ -22,21 +20,16 @@ public class FoodService : IFoodService
     private readonly ILogger<FoodService> _logger;
     private readonly IGeminiService _geminiService;
     private readonly IChatMessageRepository _chatMessageRepository;
-    private readonly IFoodRepository _foodRepository;
-    private readonly IConfiguration configuration;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly TransformQueries _transformQueries;
-    private readonly ClassifyData _classifyData;
     private readonly SaveTrainingData _saveTrainingData;
 
-    public FoodService(IUnitOfWork unitOfWork, ILogger<FoodService> logger, IGeminiService geminiService,
-        IFoodRepository foodRepository, IConfiguration configuration, IHttpContextAccessor httpContextAccessor,
+    public FoodService(IUnitOfWork unitOfWork, ILogger<FoodService> logger, IGeminiService geminiService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor,
         IChatMessageRepository chatMessageRepository)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
         _geminiService = geminiService;
-        _foodRepository = foodRepository;
         _httpContextAccessor = httpContextAccessor;
         var supabaseUrl = configuration["Supabase:Url"];
         var supabaseKey = configuration["Supabase:Key"];
@@ -44,8 +37,8 @@ public class FoodService : IFoodService
         _supabase = new Supabase.Client(supabaseUrl!, supabaseKey);
         _chatMessageRepository = chatMessageRepository;
         
-        _classifyData = new ClassifyData(_geminiService);
-        _saveTrainingData = new SaveTrainingData(_unitOfWork, _classifyData, logger);
+        var classifyData = new ClassifyData(_geminiService);
+        _saveTrainingData = new SaveTrainingData(_unitOfWork, classifyData, logger);
         _transformQueries = new TransformQueries(_geminiService);
     }
 
@@ -274,7 +267,7 @@ public class FoodService : IFoodService
             Protein = d.Protein
         }).ToList();
 
-        var prompt = GenerateFoodPrompt(promptDtos);
+        var prompt = TransformQueries.GenerateFoodPrompt(promptDtos);
 
         var aiResponse = await _geminiService.GenerateFoodsAsync(prompt);
 
@@ -312,38 +305,6 @@ public class FoodService : IFoodService
         return aiResponse;
     }
 
-    private static string GenerateFoodPrompt(IEnumerable<FoodResponseDTO> foods)
-    {
-        var sb = new StringBuilder();
-
-        if (foods.Count() == 1)
-        {
-            var f = foods.First();
-            sb.AppendLine($"Dưới đây là thông tin dinh dưỡng về món ăn {f.Name}:");
-            sb.AppendLine($"- Calories: {f.Calories} kcal");
-            sb.AppendLine($"- Carbohydrates: {f.Carbs} g");
-            sb.AppendLine($"- Fat: {f.Fat} g");
-            sb.AppendLine($"- Protein: {f.Protein} g");
-            sb.AppendLine();
-            sb.AppendLine("Hãy viết một đoạn mô tả ngắn gọn và dễ hiểu về giá trị dinh dưỡng của món ăn này.");
-        }
-        else
-        {
-            sb.AppendLine("Dưới đây là thông tin dinh dưỡng về các loại thực phẩm:\n");
-
-            foreach (var f in foods)
-            {
-                sb.AppendLine(
-                    $"- {f.Name}: {f.Calories} kcal, {f.Carbs} g carbs, {f.Fat} g fat, {f.Protein} g protein");
-            }
-
-            sb.AppendLine();
-            sb.AppendLine(
-                "Hãy viết một đoạn mô tả so sánh ngắn gọn và dễ hiểu về sự khác biệt dinh dưỡng giữa các loại thực phẩm này.");
-        }
-
-        return sb.ToString();
-    }
     private Guid GetCurrentUserId()
     {
         var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);

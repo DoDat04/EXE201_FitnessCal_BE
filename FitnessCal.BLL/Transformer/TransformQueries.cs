@@ -1,7 +1,9 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text;
+using System.Text.RegularExpressions;
 using FitnessCal.BLL.Define;
+using FitnessCal.BLL.DTO.FoodDTO.Response;
 
-namespace FitnessCal.BLL.Tools;
+namespace FitnessCal.BLL.Transformer;
 
 public class TransformQueries
 {
@@ -81,4 +83,37 @@ public class TransformQueries
         return aiResult.Trim();
     }
     
+    protected internal static string GenerateFoodPrompt(IEnumerable<FoodResponseDTO> foods)
+    {
+        var sb = new StringBuilder();
+
+        IEnumerable<FoodResponseDTO> foodResponseDtos = foods as FoodResponseDTO[] ?? foods.ToArray();
+        if (foodResponseDtos.Count() == 1)
+        {
+            var f = foodResponseDtos.First();
+            sb.AppendLine($"Dưới đây là thông tin dinh dưỡng về món ăn {f.Name}:");
+            sb.AppendLine($"- Calories: {f.Calories} kcal");
+            sb.AppendLine($"- Carbohydrates: {f.Carbs} g");
+            sb.AppendLine($"- Fat: {f.Fat} g");
+            sb.AppendLine($"- Protein: {f.Protein} g");
+            sb.AppendLine();
+            sb.AppendLine("Hãy viết một đoạn mô tả ngắn gọn và dễ hiểu về giá trị dinh dưỡng của món ăn này.");
+        }
+        else
+        {
+            sb.AppendLine("Dưới đây là thông tin dinh dưỡng về các loại thực phẩm:\n");
+
+            foreach (var f in foodResponseDtos)
+            {
+                sb.AppendLine(
+                    $"- {f.Name}: {f.Calories} kcal, {f.Carbs} g carbs, {f.Fat} g fat, {f.Protein} g protein");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine(
+                "Hãy viết một đoạn mô tả so sánh ngắn gọn và dễ hiểu về sự khác biệt dinh dưỡng giữa các loại thực phẩm này.");
+        }
+
+        return sb.ToString();
+    }
 }

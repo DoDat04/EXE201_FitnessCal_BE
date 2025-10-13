@@ -3,7 +3,7 @@ using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 using Microsoft.Extensions.Logging;
 
-namespace FitnessCal.BLL.Tools;
+namespace FitnessCal.BLL.Transformer;
 
 public class SaveTrainingData
 {
@@ -20,7 +20,7 @@ public class SaveTrainingData
 
     protected internal async Task SaveTrainingDataAsync(FoodService.ParsedFoodInfo foodInfo)
     {
-        if (foodInfo == null || string.IsNullOrWhiteSpace(foodInfo.Name))
+        if (string.IsNullOrWhiteSpace(foodInfo.Name))
             return;
 
         // 1. Phân loại ingredient hay dish
