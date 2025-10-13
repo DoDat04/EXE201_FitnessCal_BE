@@ -420,106 +420,68 @@ public class FoodService : IFoodService
                 };
             }
 
-            // 4. Chuẩn hóa & tách text → nhiều món ăn
-            var detectedFoods = response
-                .Split(new[] { ',', '\n', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.Replace("*", "").Replace("-", "").Trim().ToLower())
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToList();
-
-            if (!detectedFoods.Any())
+            // 4. Parse response từ AI (format: "Tên món|Calories|Carbs|Fat|Protein")
+            var parsedFood = ParseAIResponse(response);
+            if (parsedFood == null)
             {
                 return new ApiResponse<object>
                 {
                     Success = false,
-                    Message = "Không tìm thấy món ăn hợp lệ trong văn bản AI trả về",
+                    Message = "Không thể parse được thông tin dinh dưỡng từ AI",
                     Data = new { RawText = response }
                 };
             }
 
-            // 5. Check DB & cộng dinh dưỡng
-            double totalCalories = 0, totalCarbs = 0, totalFat = 0, totalProtein = 0;
-            var foundFoods = new List<SearchFoodResponseDTO>();
-            var notFoundFoods = new List<string>();
-
-            foreach (var name in detectedFoods)
+            // 5. Luôn tạo UserCapturedFood với thông tin từ AI
+            var userId = GetCurrentUserId();
+            var userCapturedFood = new UserCapturedFood
             {
-                var foods = await SearchFoodByNameAsync(name);
-                var dishes = await SearchPredefinedDishByNameAsync(name);
+                UserId = userId,
+                Name = parsedFood.Name,
+                Calories = parsedFood.Calories,
+                Carbs = parsedFood.Carbs,
+                Fat = parsedFood.Fat,
+                Protein = parsedFood.Protein
+            };
 
-                if (foods.Any())
+            await _unitOfWork.UserCapturedFoods.AddAsync(userCapturedFood);
+            await _unitOfWork.Save();
+
+            // 6. Tạo response với thông tin từ AI
+            var foundFoods = new List<SearchFoodResponseDTO>
+            {
+                new SearchFoodResponseDTO
                 {
-                    foreach (var f in foods)
-                    {
-                        totalCalories += f!.Calories;
-                        totalCarbs += f.Carbs;
-                        totalFat += f.Fat;
-                        totalProtein += f.Protein;
-
-                        foundFoods.Add(new SearchFoodResponseDTO
-                        {
-                            Id = f.FoodId,
-                            Name = f.Name,
-                            Calories = f.Calories,
-                            Carbs = f.Carbs,
-                            Fat = f.Fat,
-                            Protein = f.Protein,
-                            ServingUnit = null,
-                            SourceType = "Food",
-                            FoodId = f.FoodId,
-                            DishId = null
-                        });
-                    }
+                    Id = userCapturedFood.Id,
+                    Name = userCapturedFood.Name,
+                    Calories = userCapturedFood.Calories,
+                    Carbs = userCapturedFood.Carbs,
+                    Fat = userCapturedFood.Fat,
+                    Protein = userCapturedFood.Protein,
+                    ServingUnit = "1 phần",
+                    SourceType = "UserCapturedFood",
+                    FoodId = null,
+                    DishId = userCapturedFood.Id
                 }
-                else if (dishes.Any())
-                {
-                    foreach (var d in dishes)
-                    {
-                        totalCalories += d!.Calories;
-                        totalCarbs += d.Carbs;
-                        totalFat += d.Fat;
-                        totalProtein += d.Protein;
+            };
 
-                        foundFoods.Add(new SearchFoodResponseDTO
-                        {
-                            Id = d.DishId,
-                            Name = d.Name,
-                            Calories = d.Calories,
-                            Carbs = d.Carbs,
-                            Fat = d.Fat,
-                            Protein = d.Protein,
-                            ServingUnit = d.ServingUnit,
-                            SourceType = "PredefinedDish",
-                            FoodId = null,
-                            DishId = d.DishId
-                        });
-                    }
-                }
-                else
-                {
-                    notFoundFoods.Add(name);
-                }
-            }
-
-            // 6. Trả kết quả
+            // 7. Trả kết quả
             return new ApiResponse<object>
             {
                 Success = true,
-                Message = foundFoods.Any()
-                    ? "Đã nhận diện thành công một số món ăn"
-                    : "Không tìm thấy món ăn nào trong DB",
+                Message = "Đã nhận diện và lưu món ăn thành công",
                 Data = new
                 {
                     ImageUrl = publicUrl,
                     Foods = foundFoods,
                     TotalNutrition = new
                     {
-                        Calories = totalCalories,
-                        Carbs = totalCarbs,
-                        Fat = totalFat,
-                        Protein = totalProtein
+                        Calories = Math.Round(userCapturedFood.Calories, 1),
+                        Carbs = Math.Round(userCapturedFood.Carbs, 1),
+                        Fat = Math.Round(userCapturedFood.Fat, 1),
+                        Protein = Math.Round(userCapturedFood.Protein, 1)
                     },
-                    NotFound = notFoundFoods,
+                    NotFound = new List<string>(),
                     RawText = response
                 }
             };
@@ -536,16 +498,186 @@ public class FoodService : IFoodService
         }
     }
 
+    public async Task<AddCapturedFoodToMealResponseDTO> AddCapturedFoodToMealAsync(AddCapturedFoodToMealRequestDTO request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+
+            // 1. Kiểm tra UserCapturedFood có tồn tại và thuộc về user hiện tại
+            var capturedFood = await _unitOfWork.UserCapturedFoods.GetByIdAsync(request.CapturedFoodId);
+            if (capturedFood == null)
+            {
+                throw new KeyNotFoundException("Không tìm thấy món ăn đã chụp");
+            }
+
+            if (capturedFood.UserId != userId)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền truy cập món ăn này");
+            }
+
+            // 2. Kiểm tra MealLog có tồn tại và thuộc về user hiện tại
+            var mealLog = await _unitOfWork.UserMealLogs.GetByIdAsync(request.MealLogId);
+            if (mealLog == null)
+            {
+                throw new KeyNotFoundException("Không tìm thấy bữa ăn");
+            }
+
+            if (mealLog.UserId != userId)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền truy cập bữa ăn này");
+            }
+
+            // 3. Tính calories theo số lượng
+            var totalCalories = capturedFood.Calories * request.Quantity;
+
+            // 4. Tạo UserMealItem
+            var mealItem = new UserMealItem
+            {
+                LogId = request.MealLogId,
+                IsCustom = 0,
+                FoodId = null,
+                DishId = null,
+                UserCapturedFoodId = request.CapturedFoodId, 
+                Quantity = request.Quantity,
+                Calories = totalCalories
+            };
+
+            await _unitOfWork.UserMealItems.AddAsync(mealItem);
+            var result = await _unitOfWork.Save();
+
+            if (!result)
+            {
+                throw new Exception("Không thể lưu món ăn vào bữa ăn");
+            }
+
+            _logger.LogInformation("Captured food {CapturedFoodId} added to meal log {MealLogId} successfully", 
+                request.CapturedFoodId, request.MealLogId);
+
+            return new AddCapturedFoodToMealResponseDTO
+            {
+                ItemId = mealItem.ItemId,
+                MealLogId = request.MealLogId,
+                CapturedFoodId = request.CapturedFoodId,
+                FoodName = capturedFood.Name,
+                Quantity = request.Quantity,
+                Calories = totalCalories,
+                Message = "Thêm món ăn vào bữa ăn thành công"
+            };
+        }
+        catch (KeyNotFoundException)
+        {
+            throw;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while adding captured food {CapturedFoodId} to meal log {MealLogId}", 
+                request.CapturedFoodId, request.MealLogId);
+            throw new Exception("Có lỗi xảy ra khi thêm món ăn vào bữa ăn");
+        }
+    }
+
+    public async Task<List<GetUserCapturedFoodsResponseDTO>> GetUserCapturedFoodsAsync()
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            
+            var userCapturedFoods = await _unitOfWork.UserCapturedFoods.GetAllAsync(ucf => ucf.UserId == userId);
+            
+            var result = userCapturedFoods.Select(ucf => new GetUserCapturedFoodsResponseDTO
+            {
+                Id = ucf.Id,
+                Name = ucf.Name,
+                Calories = ucf.Calories,
+                Carbs = ucf.Carbs,
+                Fat = ucf.Fat,
+                Protein = ucf.Protein
+            }).ToList();
+
+            _logger.LogInformation("Retrieved {Count} user captured foods for user {UserId}", result.Count, userId);
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while getting user captured foods");
+            throw new Exception("Có lỗi xảy ra khi lấy danh sách món ăn đã chụp");
+        }
+    }
+
     private static string TransformQuery(string imageUrl)
     {
         return $@"
-            Phân tích món ăn trong ảnh sau: {imageUrl}.
+            Phân tích ảnh món ăn sau: {imageUrl}
+
             Nhiệm vụ:
-            1. Nhận diện tất cả món ăn có trong ảnh.
-            2. Trả về danh sách tên món ăn (ngắn gọn, rõ ràng).
-            3. Nếu có nhiều món, hãy liệt kê theo từng dòng.
-            4. Không giải thích dài dòng, chỉ liệt kê tên món ăn để dùng cho tra cứu DB.
-            ";
+            1. Nhận diện món ăn chính và các thành phần có thể thấy rõ (ví dụ: thịt, bún, rau, nước dùng...).
+            2. Xác định loại món ăn (eat clean, món Á, món Âu, fast food, salad, v.v.) để ước lượng phù hợp.
+            3. Ước lượng dinh dưỡng dựa trên **khẩu phần trung bình thông thường của người Việt (khoảng 1 tô hoặc 1 đĩa vừa, 700–800g)**.
+            4. **Không tính phần nước dư hoặc dầu mỡ nổi trong tô**, chỉ tính phần ăn chính (bún, thịt, chả, rau...).
+            5. Đưa ra 4 giá trị chính: Calories (kcal), Carbs (g), Fat (g), Protein (g).
+            6. Trả về đúng format duy nhất:
+            Tên món|Calories|Carbs|Fat|Protein
+            7. Không ghi chú, không mô tả thêm.
+            8. Ví dụ:
+            Cơm gà xối mỡ|720|65|30|45
+            Salad ức gà và rau củ|340|25|9|38
+        ";
+    }
+
+    private static ParsedFoodInfo? ParseAIResponse(string response)
+    {
+        try
+        {
+            // Lấy dòng đầu tiên và loại bỏ ký tự đặc biệt
+            var cleanResponse = response.Split('\n').FirstOrDefault()?.Trim();
+            if (string.IsNullOrWhiteSpace(cleanResponse))
+                return null;
+
+            // Loại bỏ ký tự đặc biệt
+            cleanResponse = cleanResponse.Replace("*", "").Replace("-", "").Trim();
+
+            // Parse format: "Tên món|Calories|Carbs|Fat|Protein"
+            var parts = cleanResponse.Split('|');
+            if (parts.Length != 5)
+                return null;
+
+            var name = parts[0].Trim();
+            if (double.TryParse(parts[1].Trim(), out var calories) &&
+                double.TryParse(parts[2].Trim(), out var carbs) &&
+                double.TryParse(parts[3].Trim(), out var fat) &&
+                double.TryParse(parts[4].Trim(), out var protein))
+            {
+                return new ParsedFoodInfo
+                {
+                    Name = name,
+                    Calories = calories,
+                    Carbs = carbs,
+                    Fat = fat,
+                    Protein = protein
+                };
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private class ParsedFoodInfo
+    {
+        public string Name { get; set; } = string.Empty;
+        public double Calories { get; set; }
+        public double Carbs { get; set; }
+        public double Fat { get; set; }
+        public double Protein { get; set; }
     }
 
     public async Task<SearchFoodResponseDTO> GetFoodDetailsAsync(int id, string type)

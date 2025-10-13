@@ -19,6 +19,8 @@ public partial class UserMealItem
 
     public int? FoodId { get; set; }
 
+    public int? UserCapturedFoodId { get; set; }
+
     public double Quantity { get; set; }
 
     public double? Calories { get; set; }
@@ -26,6 +28,8 @@ public partial class UserMealItem
     public virtual PredefinedDish? Dish { get; set; }
 
     public virtual Food? Food { get; set; }
+
+    public virtual UserCapturedFood? UserCapturedFood { get; set; }
 
     public virtual UserMealLog? Log { get; set; }
 }

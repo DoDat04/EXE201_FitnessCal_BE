@@ -11,6 +11,7 @@ namespace FitnessCal.BLL.DTO.UserMealItemDTO.Request
         public int MealLogId { get; set; }
         public int? FoodId { get; set; }        
         public int? DishId { get; set; }        
+        public int? UserCapturedFoodId { get; set; }
         public double Quantity { get; set; }    
     }
 }

@@ -162,9 +162,16 @@ namespace FitnessCal.BLL.Implement
                     .Distinct()
                     .ToList();
 
-                // Load all foods and dishes in batch
+                var userCapturedFoodIds = mealLogs.SelectMany(log => log.UserMealItems ?? new List<UserMealItem>())
+                    .Where(item => item.UserCapturedFoodId.HasValue)
+                    .Select(item => item.UserCapturedFoodId.Value)
+                    .Distinct()
+                    .ToList();
+
+                // Load all foods, dishes and user captured foods in batch
                 var foods = new List<Food>();
                 var dishes = new List<PredefinedDish>();
+                var userCapturedFoods = new List<UserCapturedFood>();
 
                 if (foodIds.Any())
                 {
@@ -176,9 +183,15 @@ namespace FitnessCal.BLL.Implement
                     dishes = (await _unitOfWork.PredefinedDishes.GetAllAsync(d => dishIds.Contains(d.DishId))).ToList();
                 }
 
+                if (userCapturedFoodIds.Any())
+                {
+                    userCapturedFoods = (await _unitOfWork.UserCapturedFoods.GetAllAsync(ucf => userCapturedFoodIds.Contains(ucf.Id))).ToList();
+                }
+
                 // Create dictionaries for fast lookup
                 var foodDict = foods.ToDictionary(f => f.FoodId);
                 var dishDict = dishes.ToDictionary(d => d.DishId);
+                var userCapturedFoodDict = userCapturedFoods.ToDictionary(ucf => ucf.Id);
 
                 foreach (var mealLog in mealLogs)
                 {
@@ -201,12 +214,17 @@ namespace FitnessCal.BLL.Implement
                             {
                                 foodName = dish.Name;
                             }
+                            else if (item.UserCapturedFoodId.HasValue && userCapturedFoodDict.TryGetValue(item.UserCapturedFoodId.Value, out var userCapturedFood))
+                            {
+                                foodName = userCapturedFood.Name;
+                            }
 
                             items.Add(new MealItemDTO
                             {
                                 ItemId = item.ItemId,
                                 FoodId = item.FoodId,
                                 DishId = item.DishId,
+                                UserCapturedFoodId = item.UserCapturedFoodId,
                                 FoodName = foodName,
                                 Quantity = item.Quantity,
                                 Calories = item.Calories ?? 0

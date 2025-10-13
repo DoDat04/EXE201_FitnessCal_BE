@@ -53,6 +53,8 @@ public partial class FitnessCalContext : DbContext
 
     public virtual DbSet<UserNotificationSettings> UserNotificationSettings { get; set; }
 
+    public virtual DbSet<UserCapturedFood> UserCapturedFoods { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Food>(entity =>
@@ -309,6 +311,9 @@ public partial class FitnessCalContext : DbContext
             entity.Property(e => e.FoodId)
                 .HasColumnName("foodid");
 
+            entity.Property(e => e.UserCapturedFoodId)
+                .HasColumnName("usercapturedfoodid");
+
             entity.Property(e => e.Quantity)
                 .IsRequired()
                 .HasColumnName("quantity")
@@ -325,6 +330,10 @@ public partial class FitnessCalContext : DbContext
             entity.HasOne(d => d.Food).WithMany(p => p.UserMealItems)
                 .HasForeignKey(d => d.FoodId)
                 .HasConstraintName("usermealitems_foodid_fkey");
+
+            entity.HasOne(d => d.UserCapturedFood).WithMany()
+                .HasForeignKey(d => d.UserCapturedFoodId)
+                .HasConstraintName("usermealitems_usercapturedfoodid_fkey");
 
             entity.HasOne(d => d.Log).WithMany(p => p.UserMealItems)
                 .HasForeignKey(d => d.LogId)
@@ -845,6 +854,51 @@ public partial class FitnessCalContext : DbContext
             entity.HasIndex(e => e.UserId)
                 .IsUnique()
                 .HasDatabaseName("usernotificationsettings_userid_unique");
+        });
+
+        modelBuilder.Entity<UserCapturedFood>(entity =>
+        {
+            entity.ToTable("usercapturedfood");
+
+            entity.HasKey(e => e.Id).HasName("usercapturedfood_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .IsRequired()
+                .HasColumnName("userid")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.Name)
+                .IsRequired()
+                .HasColumnName("name")
+                .HasColumnType("character varying");
+
+            entity.Property(e => e.Calories)
+                .IsRequired()
+                .HasColumnName("calories")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.Carbs)
+                .IsRequired()
+                .HasColumnName("carbs")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.Fat)
+                .IsRequired()
+                .HasColumnName("fat")
+                .HasColumnType("double precision");
+
+            entity.Property(e => e.Protein)
+                .IsRequired()
+                .HasColumnName("protein")
+                .HasColumnType("double precision");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("usercapturedfood_userid_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -188,6 +188,87 @@ namespace FitnessCal.API.Controllers
             }
         }
 
+        [HttpPost("add-captured-food-to-meal")]
+        public async Task<ActionResult<ApiResponse<AddCapturedFoodToMealResponseDTO>>> AddCapturedFoodToMeal([FromBody] AddCapturedFoodToMealRequestDTO request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new ApiResponse<AddCapturedFoodToMealResponseDTO>
+                    {
+                        Success = false,
+                        Message = "Dữ liệu không hợp lệ",
+                        Data = null
+                    });
+                }
+
+                var result = await _foodService.AddCapturedFoodToMealAsync(request);
+
+                return Ok(new ApiResponse<AddCapturedFoodToMealResponseDTO>
+                {
+                    Success = true,
+                    Message = result.Message,
+                    Data = result
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new ApiResponse<AddCapturedFoodToMealResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new ApiResponse<AddCapturedFoodToMealResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while adding captured food to meal");
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR,
+                    new ApiResponse<AddCapturedFoodToMealResponseDTO>
+                    {
+                        Success = false,
+                        Message = ex.Message,
+                        Data = null
+                    });
+            }
+        }
+
+        [HttpGet("user-captured-foods")]
+        public async Task<ActionResult<ApiResponse<List<GetUserCapturedFoodsResponseDTO>>>> GetUserCapturedFoods()
+        {
+            try
+            {
+                var result = await _foodService.GetUserCapturedFoodsAsync();
+
+                return Ok(new ApiResponse<List<GetUserCapturedFoodsResponseDTO>>
+                {
+                    Success = true,
+                    Message = "Lấy danh sách món ăn đã chụp thành công",
+                    Data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while getting user captured foods");
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR,
+                    new ApiResponse<List<GetUserCapturedFoodsResponseDTO>>
+                    {
+                        Success = false,
+                        Message = ex.Message,
+                        Data = null
+                    });
+            }
+        }
 
         [HttpGet("details/{id}")]
         public async Task<ActionResult<ApiResponse<SearchFoodResponseDTO>>> GetFoodDetails(int id, [FromQuery] string type)

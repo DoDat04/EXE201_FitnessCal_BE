@@ -35,11 +35,17 @@ namespace FitnessCal.BLL.Implement
                     throw new ArgumentException("Số lượng phải lớn hơn 0");
                 }
 
-                // Không cho phép đồng thời có cả FoodId và DishId
-                if (dto.FoodId.HasValue && dto.DishId.HasValue)
+                // Kiểm tra chỉ có một source được chọn
+                var sourceCount = 0;
+                if (dto.FoodId.HasValue) sourceCount++;
+                if (dto.DishId.HasValue) sourceCount++;
+                if (dto.UserCapturedFoodId.HasValue) sourceCount++;
+
+                if (sourceCount != 1)
                 {
-                    _logger.LogWarning("Both FoodId and DishId provided. Only one source is allowed. FoodId: {FoodId}, DishId: {DishId}", dto.FoodId.Value, dto.DishId.Value);
-                    throw new ArgumentException("Chỉ chọn một trong hai: FoodId hoặc DishId");
+                    _logger.LogWarning("Exactly one source must be provided. FoodId: {FoodId}, DishId: {DishId}, UserCapturedFoodId: {UserCapturedFoodId}", 
+                        dto.FoodId, dto.DishId, dto.UserCapturedFoodId);
+                    throw new ArgumentException("Chỉ chọn một trong ba: FoodId, DishId hoặc UserCapturedFoodId");
                 }
 
                 var mealLog = await _unitOfWork.UserMealLogs.GetByIdAsync(dto.MealLogId);
@@ -79,10 +85,23 @@ namespace FitnessCal.BLL.Implement
                     calories = dish.Calories * dto.Quantity;
                     isCustom = 0;
                 }
+                else if (dto.UserCapturedFoodId.HasValue)
+                {
+                    var userCapturedFood = await _unitOfWork.UserCapturedFoods.GetByIdAsync(dto.UserCapturedFoodId.Value);
+                    if (userCapturedFood == null)
+                    {
+                        _logger.LogWarning("UserCapturedFood with ID {UserCapturedFoodId} not found", dto.UserCapturedFoodId.Value);
+                        throw new KeyNotFoundException("Không tìm thấy món ăn đã chụp");
+                    }
+
+                    foodName = userCapturedFood.Name;
+                    calories = userCapturedFood.Calories * dto.Quantity;
+                    isCustom = 0;
+                }
                 else
                 {
                     _logger.LogWarning("No food source specified");
-                    throw new ArgumentException("Phải chọn món ăn từ database hoặc món ăn định sẵn");
+                    throw new ArgumentException("Phải chọn món ăn từ database, món ăn định sẵn hoặc món ăn đã chụp");
                 }
 
                 var mealItem = new UserMealItem
@@ -92,6 +111,7 @@ namespace FitnessCal.BLL.Implement
                     // Chỉ set một FK để tránh vi phạm ràng buộc
                     FoodId = dto.FoodId.HasValue ? dto.FoodId : null,
                     DishId = dto.DishId.HasValue ? dto.DishId : null,
+                    UserCapturedFoodId = dto.UserCapturedFoodId.HasValue ? dto.UserCapturedFoodId : null,
                     Quantity = dto.Quantity,
                     Calories = calories
                 };
@@ -162,6 +182,14 @@ namespace FitnessCal.BLL.Implement
                     if (dish != null)
                     {
                         foodName = dish.Name;
+                    }
+                }
+                else if (mealItem.UserCapturedFoodId.HasValue)
+                {
+                    var userCapturedFood = await _unitOfWork.UserCapturedFoods.GetByIdAsync(mealItem.UserCapturedFoodId.Value);
+                    if (userCapturedFood != null)
+                    {
+                        foodName = userCapturedFood.Name;
                     }
                 }
 
@@ -250,6 +278,18 @@ namespace FitnessCal.BLL.Implement
 
                     foodName = dish.Name;
                     newCalories = dish.Calories * dto.Quantity;
+                }
+                else if (mealItem.UserCapturedFoodId.HasValue)
+                {
+                    var userCapturedFood = await _unitOfWork.UserCapturedFoods.GetByIdAsync(mealItem.UserCapturedFoodId.Value);
+                    if (userCapturedFood == null)
+                    {
+                        _logger.LogWarning("UserCapturedFood with ID {UserCapturedFoodId} not found", mealItem.UserCapturedFoodId.Value);
+                        throw new KeyNotFoundException("Không tìm thấy món ăn đã chụp");
+                    }
+
+                    foodName = userCapturedFood.Name;
+                    newCalories = userCapturedFood.Calories * dto.Quantity;
                 }
                 else
                 {
