@@ -431,6 +431,9 @@ public class FoodService : IFoodService
                     Data = new { RawText = response }
                 };
             }
+            
+            // Lưu món ăn mới vào DB để training
+            await SaveTrainingDataAsync(parsedFood);
 
             // 5. Luôn tạo UserCapturedFood với thông tin từ AI
             var userId = GetCurrentUserId();
@@ -629,7 +632,106 @@ public class FoodService : IFoodService
             Salad ức gà và rau củ|340|25|9|38
         ";
     }
+    private async Task<string> ClassifyFoodOrDishAsync(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "Food";
 
+        var lowerName = name.ToLower().Trim();
+
+        // Một số keyword giúp phân loại nhanh (dùng cho tên đơn giản/ngắn)
+        string[] ingredientKeywords = { "trứng", "bắp", "gạo", "thịt", "cá", "rau", "tôm", "muối", "dầu", "nước mắm" };
+
+        // Nếu chỉ có 1 từ, hoặc độ dài < 2 từ => khả năng cao là Food
+        if (ingredientKeywords.Any(kw => lowerName == kw))
+            return "Food";
+
+        // Nếu chứa các món ăn phổ biến => Dish
+        if (lowerName.Contains("cơm") ||
+            lowerName.Contains("phở") ||
+            lowerName.Contains("salad") ||
+            lowerName.Contains("pizza") ||
+            lowerName.Contains("bún") ||
+            lowerName.Contains("mì"))
+        {
+            return "Dish";
+        }
+
+        // Nếu tên có nhiều hơn 1 từ (ví dụ: "thịt kho tàu", "cá chiên", "trứng luộc") => Dish
+        if (lowerName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 1)
+            return "Dish";
+
+        // fallback: gọi AI để classify
+        var prompt = $@"
+        Cho biết '{name}' là nguyên liệu (Food) hay món ăn (Dish).
+        Trả lời duy nhất: 'Food' hoặc 'Dish'.";
+
+        var aiResult = await _geminiService.GenerateFoodsAsync(prompt);
+        return aiResult.Trim().Equals("Food", StringComparison.OrdinalIgnoreCase) ? "Food" : "Dish";
+    }
+
+    private async Task SaveTrainingDataAsync(ParsedFoodInfo foodInfo)
+    {
+        if (foodInfo == null || string.IsNullOrWhiteSpace(foodInfo.Name))
+            return;
+
+        // 1. Phân loại ingredient hay dish
+        var type = await ClassifyFoodOrDishAsync(foodInfo.Name);
+
+        if (type == "Food")
+        {
+            // Kiểm tra đã tồn tại chưa
+            var existingFood = await _unitOfWork.Foods
+                .FirstOrDefaultAsync(f => f.Name.ToLower() == foodInfo.Name.ToLower());
+
+            if (existingFood == null)
+            {
+                var newFood = new Food
+                {
+                    Name = foodInfo.Name,
+                    Calories = foodInfo.Calories,
+                    Carbs = foodInfo.Carbs,
+                    Fat = foodInfo.Fat,
+                    Protein = foodInfo.Protein,
+                    FoodCategory = null // có thể dùng AI classify thêm
+                };
+                await _unitOfWork.Foods.AddAsync(newFood);
+                await _unitOfWork.Save();
+
+                _logger.LogInformation($"Đã lưu nguyên liệu '{newFood.Name}' vào bảng Foods.");
+            }
+            else
+            {
+                _logger.LogInformation($"Nguyên liệu '{foodInfo.Name}' đã tồn tại.");
+            }
+        }
+        else // PredefinedDish
+        {
+            var existingDish = await _unitOfWork.PredefinedDishes
+                .FirstOrDefaultAsync(d => d.Name.ToLower() == foodInfo.Name.ToLower());
+
+            if (existingDish == null)
+            {
+                var newDish = new PredefinedDish
+                {
+                    Name = foodInfo.Name,
+                    Calories = foodInfo.Calories,
+                    Carbs = foodInfo.Carbs,
+                    Fat = foodInfo.Fat,
+                    Protein = foodInfo.Protein,
+                    ServingUnit = "1 phần"
+                };
+                await _unitOfWork.PredefinedDishes.AddAsync(newDish);
+                await _unitOfWork.Save();
+
+                _logger.LogInformation($"Đã lưu món ăn '{newDish.Name}' vào bảng PredefinedDish.");
+            }
+            else
+            {
+                _logger.LogInformation($"Món ăn '{foodInfo.Name}' đã tồn tại.");
+            }
+        }
+    }
     private static ParsedFoodInfo? ParseAIResponse(string response)
     {
         try
@@ -671,7 +773,7 @@ public class FoodService : IFoodService
         }
     }
 
-    private class ParsedFoodInfo
+    public class ParsedFoodInfo
     {
         public string Name { get; set; } = string.Empty;
         public double Calories { get; set; }
