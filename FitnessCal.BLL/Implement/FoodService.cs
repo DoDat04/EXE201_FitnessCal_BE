@@ -616,21 +616,25 @@ public class FoodService : IFoodService
     private static string TransformQuery(string imageUrl)
     {
         return $@"
-            Phân tích ảnh món ăn sau: {imageUrl}
+        Phân tích ảnh sau: {imageUrl}
 
-            Nhiệm vụ:
-            1. Nhận diện món ăn chính và các thành phần có thể thấy rõ (ví dụ: thịt, bún, rau, nước dùng...).
-            2. Xác định loại món ăn (eat clean, món Á, món Âu, fast food, salad, v.v.) để ước lượng phù hợp.
-            3. Ước lượng dinh dưỡng dựa trên **khẩu phần trung bình thông thường của người Việt (khoảng 1 tô hoặc 1 đĩa vừa, 700–800g)**.
-            4. **Không tính phần nước dư hoặc dầu mỡ nổi trong tô**, chỉ tính phần ăn chính (bún, thịt, chả, rau...).
-            5. Đưa ra 4 giá trị chính: Calories (kcal), Carbs (g), Fat (g), Protein (g).
-            6. Trả về đúng format duy nhất:
-            Tên món|Calories|Carbs|Fat|Protein
-            7. Không ghi chú, không mô tả thêm.
-            8. Ví dụ:
-            Cơm gà xối mỡ|720|65|30|45
-            Salad ức gà và rau củ|340|25|9|38
-        ";
+        Nhiệm vụ:
+        0. Trước tiên, kiểm tra ảnh có phải liên quan đến đồ ăn/món ăn hợp lệ hay không.
+           - Nếu KHÔNG phải đồ ăn (ảnh phong cảnh, người, đồ vật, động vật sống...) → trả về duy nhất: INVALID
+           - Nếu là món ăn NHẠY CẢM hoặc bị cấm (ví dụ: thịt chó, món liên quan động vật hoang dã...) → trả về duy nhất: INVALID
+
+        1. Nếu hợp lệ: Nhận diện món ăn chính và các thành phần có thể thấy rõ (ví dụ: thịt, bún, rau, nước dùng...).
+        2. Xác định loại món ăn (eat clean, món Á, món Âu, fast food, salad, v.v.) để ước lượng phù hợp.
+        3. Ước lượng dinh dưỡng dựa trên **khẩu phần trung bình thông thường của người Việt (khoảng 1 tô hoặc 1 đĩa vừa, 700–800g)**.
+        4. **Không tính phần nước dư hoặc dầu mỡ nổi trong tô**, chỉ tính phần ăn chính (bún, thịt, chả, rau...).
+        5. Đưa ra 4 giá trị chính: Calories (kcal), Carbs (g), Fat (g), Protein (g).
+        6. Trả về đúng format duy nhất:
+        Tên món|Calories|Carbs|Fat|Protein
+        7. Không ghi chú, không mô tả thêm.
+        8. Ví dụ:
+        Cơm gà xối mỡ|720|65|30|45
+        Salad ức gà và rau củ|340|25|9|38
+    ";
     }
     private async Task<string> ClassifyFoodOrDishAsync(string name)
     {
