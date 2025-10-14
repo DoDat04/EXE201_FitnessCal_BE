@@ -14,7 +14,6 @@ using MongoDB.Driver;
 using Microsoft.AspNetCore.HttpOverrides;
 using FitnessCal.Worker.Define;
 using FitnessCal.Worker.Implement;
-using FitnessCal.BLL.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -72,14 +71,6 @@ builder.Services.Scan(scan => scan
 builder.Services.Scan(scan => scan
     .FromAssemblyOf<TransformQueries>()
     .AddClasses(classes => classes.InNamespaceOf<TransformQueries>())
-    .AsSelf()
-    .WithScopedLifetime()
-);
-
-// Scan Helpers
-builder.Services.Scan(scan => scan
-    .FromAssemblyOf<FitnessCal.BLL.Helpers.CurrentUserIdHelper>()
-    .AddClasses(classes => classes.InNamespaceOf<CurrentUserIdHelper>())
     .AsSelf()
     .WithScopedLifetime()
 );
