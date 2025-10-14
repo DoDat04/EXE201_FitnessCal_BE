@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using FitnessCal.BLL.Transformer;
+using FitnessCal.BLL.Helpers;
 
 namespace FitnessCal.BLL.Implement;
 
@@ -23,9 +24,11 @@ public class FoodService : IFoodService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly TransformQueries _transformQueries;
     private readonly SaveTrainingData _saveTrainingData;
+    private readonly CurrentUserIdHelper _currentUserIdHelper;
 
-    public FoodService(IUnitOfWork unitOfWork, ILogger<FoodService> logger, IGeminiService geminiService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor,
-        IChatMessageRepository chatMessageRepository)
+    public FoodService(IUnitOfWork unitOfWork, ILogger<FoodService> logger, IGeminiService geminiService, 
+        IConfiguration configuration, IHttpContextAccessor httpContextAccessor,
+        IChatMessageRepository chatMessageRepository, CurrentUserIdHelper currentUserIdHelper)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
@@ -40,6 +43,7 @@ public class FoodService : IFoodService
         var classifyData = new ClassifyData(_geminiService);
         _saveTrainingData = new SaveTrainingData(_unitOfWork, classifyData, logger);
         _transformQueries = new TransformQueries(_geminiService);
+        _currentUserIdHelper = currentUserIdHelper;
     }
 
     public async Task<SearchFoodPaginationResponseDTO> SearchFoodsAsync(string? searchTerm = null, int page = 1,
@@ -166,7 +170,7 @@ public class FoodService : IFoodService
 
     public async Task<string> GenerateFoodsInformationAsync(string userPrompt)
     {
-        var userId = GetCurrentUserId();
+        Guid userId = _currentUserIdHelper.GetCurrentUserId();
         // Chuyển sang async version
         var normalizedPrompt = await _transformQueries.TransformUserQueryAsync(userPrompt);
 
@@ -305,15 +309,6 @@ public class FoodService : IFoodService
         return aiResponse;
     }
 
-    private Guid GetCurrentUserId()
-    {
-        var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null)
-            throw new UnauthorizedAccessException("UserId không tồn tại trong token");
-
-        return Guid.Parse(userIdClaim.Value);
-    }
-
     public async Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request)
     {
         if (request.File.Length == 0)
@@ -326,11 +321,11 @@ public class FoodService : IFoodService
             };
         }
 
+        Guid GetCurrentUserId = _currentUserIdHelper.GetCurrentUserId();
         try
         {
-            // 1. Upload file lên Supabase
-            var fileName = $"{GetCurrentUserId()}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{request.File.FileName}";
-
+            // Upload ảnh lên Supabase
+            var fileName = $"{GetCurrentUserId}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{request.File.FileName}";
             byte[] fileBytes;
             await using (var memoryStream = new MemoryStream())
             {
@@ -339,20 +334,17 @@ public class FoodService : IFoodService
             }
 
             var remotePath = $"fitnesscal-ai-detected/{fileName}";
-            await _supabase.Storage
-                .From("fitnesscal-storage")
-                .Upload(fileBytes, remotePath, onProgress: (_, progress) =>
-                    _logger.LogInformation($"{progress}% uploaded"));
+            await _supabase.Storage.From("fitnesscal-storage")
+                .Upload(fileBytes, remotePath);
 
             var publicUrl = _supabase.Storage
                 .From("fitnesscal-storage")
                 .GetPublicUrl(remotePath);
 
-            // 2. Transform query từ ảnh
+            // Transform query & gọi AI
             var prompt = TransformQueries.TransformQuery(publicUrl);
-
-            // 3. Gọi Gemini AI → text mô tả đồ ăn
             var response = await _geminiService.GenerateTextFromImageAsync(publicUrl, prompt);
+
             if (string.IsNullOrWhiteSpace(response))
             {
                 return new ApiResponse<object>
@@ -363,7 +355,6 @@ public class FoodService : IFoodService
                 };
             }
 
-            // 4. Parse response từ AI (format: "Tên món|Calories|Carbs|Fat|Protein")
             var parsedFood = ParseAIResponse(response);
             if (parsedFood == null)
             {
@@ -374,60 +365,22 @@ public class FoodService : IFoodService
                     Data = new { RawText = response }
                 };
             }
-            
-            // Lưu món ăn mới vào DB để training
-            await _saveTrainingData.SaveTrainingDataAsync(parsedFood);
 
-            // 5. Luôn tạo UserCapturedFood với thông tin từ AI
-            var userId = GetCurrentUserId();
-            var userCapturedFood = new UserCapturedFood
-            {
-                UserId = userId,
-                Name = parsedFood.Name,
-                Calories = parsedFood.Calories,
-                Carbs = parsedFood.Carbs,
-                Fat = parsedFood.Fat,
-                Protein = parsedFood.Protein
-            };
-
-            await _unitOfWork.UserCapturedFoods.AddAsync(userCapturedFood);
-            await _unitOfWork.Save();
-
-            // 6. Tạo response với thông tin từ AI
-            var foundFoods = new List<SearchFoodResponseDTO>
-            {
-                new SearchFoodResponseDTO
-                {
-                    Id = userCapturedFood.Id,
-                    Name = userCapturedFood.Name,
-                    Calories = userCapturedFood.Calories,
-                    Carbs = userCapturedFood.Carbs,
-                    Fat = userCapturedFood.Fat,
-                    Protein = userCapturedFood.Protein,
-                    ServingUnit = "1 phần",
-                    SourceType = "UserCapturedFood",
-                    FoodId = null,
-                    DishId = userCapturedFood.Id
-                }
-            };
-
-            // 7. Trả kết quả
             return new ApiResponse<object>
             {
                 Success = true,
-                Message = "Đã nhận diện và lưu món ăn thành công",
+                Message = "Nhận diện thành công, vui lòng xác nhận trước khi lưu",
                 Data = new
                 {
                     ImageUrl = publicUrl,
-                    Foods = foundFoods,
-                    TotalNutrition = new
+                    DetectedFood = new
                     {
-                        Calories = Math.Round(userCapturedFood.Calories, 1),
-                        Carbs = Math.Round(userCapturedFood.Carbs, 1),
-                        Fat = Math.Round(userCapturedFood.Fat, 1),
-                        Protein = Math.Round(userCapturedFood.Protein, 1)
+                        parsedFood.Name,
+                        parsedFood.Calories,
+                        parsedFood.Carbs,
+                        parsedFood.Fat,
+                        parsedFood.Protein
                     },
-                    NotFound = new List<string>(),
                     RawText = response
                 }
             };
@@ -448,7 +401,7 @@ public class FoodService : IFoodService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserIdHelper.GetCurrentUserId();
 
             // 1. Kiểm tra UserCapturedFood có tồn tại và thuộc về user hiện tại
             var capturedFood = await _unitOfWork.UserCapturedFoods.GetByIdAsync(request.CapturedFoodId);
@@ -531,8 +484,8 @@ public class FoodService : IFoodService
     {
         try
         {
-            var userId = GetCurrentUserId();
-            
+            var userId = _currentUserIdHelper.GetCurrentUserId();
+
             var userCapturedFoods = await _unitOfWork.UserCapturedFoods.GetAllAsync(ucf => ucf.UserId == userId);
             
             var result = userCapturedFoods.Select(ucf => new GetUserCapturedFoodsResponseDTO
