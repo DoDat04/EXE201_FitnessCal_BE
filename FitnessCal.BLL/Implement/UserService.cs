@@ -301,7 +301,7 @@ namespace FitnessCal.BLL.Implement
 
                         dailyRevenues.Add(new DailyRevenueDTO
                         {
-                            Date = currentDate,
+                            Date = ConvertUtcToVietnamTime(currentDate),
                             Revenue = daySubscriptions.Sum(s => s.PriceAtPurchase),
                             SubscriptionCount = daySubscriptions.Count
                         });
@@ -309,6 +309,72 @@ namespace FitnessCal.BLL.Implement
                         currentDate = nextDate;
                     }
                 }
+
+                // Tính toán dữ liệu theo các khoảng thời gian
+                var dailyRevenuesWithData = new List<DailyRevenueDTO>();
+                var monthlyRevenues = new List<MonthlyRevenueDTO>();
+                var quarterlyRevenues = new List<QuarterlyRevenueDTO>();
+                var yearlyRevenues = new List<YearlyRevenueDTO>();
+
+                // Lấy tất cả ngày có doanh thu (chỉ những ngày có subscription)
+                var daysWithRevenue = allSubscriptions
+                    .GroupBy(s => s.StartDate.Date)
+                    .Select(g => new DailyRevenueDTO
+                    {
+                        Date = ConvertUtcToVietnamTime(g.Key),
+                        Revenue = g.Sum(s => s.PriceAtPurchase),
+                        SubscriptionCount = g.Count()
+                    })
+                    .OrderBy(d => d.Date)
+                    .ToList();
+
+                dailyRevenuesWithData = daysWithRevenue;
+
+                // Tính toán theo tháng
+                var monthlyData = allSubscriptions
+                    .GroupBy(s => new { s.StartDate.Year, s.StartDate.Month })
+                    .Select(g => new MonthlyRevenueDTO
+                    {
+                        Year = g.Key.Year,
+                        Month = g.Key.Month,
+                        MonthName = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MM/yyyy"),//số 1 là day
+                        Revenue = g.Sum(s => s.PriceAtPurchase),
+                        SubscriptionCount = g.Count()
+                    })
+                    .OrderBy(m => m.Year).ThenBy(m => m.Month)
+                    .ToList();
+
+                monthlyRevenues = monthlyData;
+
+                // Tính toán theo quý
+                var quarterlyData = allSubscriptions
+                    .GroupBy(s => new { s.StartDate.Year, Quarter = ((s.StartDate.Month - 1) / 3) + 1 })
+                    .Select(g => new QuarterlyRevenueDTO
+                    {
+                        Year = g.Key.Year,
+                        Quarter = g.Key.Quarter,
+                        QuarterName = $"Q{g.Key.Quarter}/{g.Key.Year}",
+                        Revenue = g.Sum(s => s.PriceAtPurchase),
+                        SubscriptionCount = g.Count()
+                    })
+                    .OrderBy(q => q.Year).ThenBy(q => q.Quarter)
+                    .ToList();
+
+                quarterlyRevenues = quarterlyData;
+
+                // Tính toán theo năm
+                var yearlyData = allSubscriptions
+                    .GroupBy(s => s.StartDate.Year)
+                    .Select(g => new YearlyRevenueDTO
+                    {
+                        Year = g.Key,
+                        Revenue = g.Sum(s => s.PriceAtPurchase),
+                        SubscriptionCount = g.Count()
+                    })
+                    .OrderBy(y => y.Year)
+                    .ToList();
+
+                yearlyRevenues = yearlyData;
 
                 return new RevenueStatisticsDTO
                 {
@@ -324,13 +390,43 @@ namespace FitnessCal.BLL.Implement
                     EndDate = endDate,
                     RevenueInRange = revenueInRange,
                     SubscriptionCountInRange = subscriptionCountInRange,
-                    DailyRevenues = dailyRevenues
+                    DailyRevenues = dailyRevenues,
+                    DailyRevenuesWithData = dailyRevenuesWithData,
+                    MonthlyRevenues = monthlyRevenues,
+                    QuarterlyRevenues = quarterlyRevenues,
+                    YearlyRevenues = yearlyRevenues
                 };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while retrieving revenue statistics");
                 throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
+            }
+        }
+
+        private static DateTime ConvertUtcToVietnamTime(DateTime utcDateTime)
+        {
+            if (utcDateTime.Kind != DateTimeKind.Utc)
+            {
+                utcDateTime = DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
+            }
+
+            try
+            {
+                var tz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, tz);
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                try
+                {
+                    var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Bangkok");
+                    return TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, tz);
+                }
+                catch
+                {
+                    return utcDateTime.AddHours(7);
+                }
             }
         }
 

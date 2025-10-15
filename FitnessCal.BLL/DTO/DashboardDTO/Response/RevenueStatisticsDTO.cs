@@ -19,6 +19,12 @@ namespace FitnessCal.BLL.DTO.DashboardDTO.Response
         public decimal RevenueInRange { get; set; }
         public int SubscriptionCountInRange { get; set; }
         public List<DailyRevenueDTO> DailyRevenues { get; set; } = new List<DailyRevenueDTO>();
+        
+        // Thêm dữ liệu theo các khoảng thời gian
+        public List<DailyRevenueDTO> DailyRevenuesWithData { get; set; } = new List<DailyRevenueDTO>();
+        public List<MonthlyRevenueDTO> MonthlyRevenues { get; set; } = new List<MonthlyRevenueDTO>();
+        public List<QuarterlyRevenueDTO> QuarterlyRevenues { get; set; } = new List<QuarterlyRevenueDTO>();
+        public List<YearlyRevenueDTO> YearlyRevenues { get; set; } = new List<YearlyRevenueDTO>();
     }
 }
 
