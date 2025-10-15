@@ -229,7 +229,7 @@ namespace FitnessCal.BLL.Implement
         {
             try
             {
-                var allSubscriptions = await _unitOfWork.UserSubscriptions.GetAllAsync(s => s.PaymentStatus == "paid");
+                var allSubscriptions = await _unitOfWork.UserSubscriptions.GetAllAsync(s => s.PaymentStatus == "paid" || s.PaymentStatus == "expired");
 
                 var now = DateTime.UtcNow;
                 var startOfThisMonth = new DateTime(now.Year, now.Month, 1);
