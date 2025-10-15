@@ -9,5 +9,6 @@ namespace FitnessCal.BLL.BackgroundService.Define
     public interface IChangePaymentStatusGeneratorService
     {
         Task ExecuteChangePaymentStatusJob(CancellationToken stoppingToken);
+        Task ExecuteDeleteFailedPaymentStatusJob(CancellationToken stoppingToken);
     }
 }

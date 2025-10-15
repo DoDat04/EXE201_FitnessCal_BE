@@ -33,8 +33,28 @@ namespace FitnessCal.BLL.BackgroundService.Implement
                     _logger.LogError(ex, "Error while updating subscription statuses.");
                 }
 
-                // chạy mỗi 1 giờ (có thể chỉnh)
                 await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
+            }
+        }
+
+        public async Task ExecuteDeleteFailedPaymentStatusJob(CancellationToken stoppingToken)
+        {
+            _logger.LogInformation("DeleteFailedPaymentStatusJob started.");
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var service = scope.ServiceProvider.GetRequiredService<ISubscriptionService>();
+                try
+                {
+                    await service.DeleteFailedPaymentsAsync(stoppingToken);
+                    _logger.LogInformation("Checked and deleted failed payment records at: {time}", DateTime.UtcNow);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error while deleting failed payment records.");
+                }
+
+                Task.Delay(TimeSpan.FromHours(24), stoppingToken).Wait(stoppingToken);
             }
         }
     }

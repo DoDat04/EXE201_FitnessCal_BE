@@ -2,9 +2,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace FitnessCal.BLL.BackgroundService
+namespace FitnessCal.BLL.BackgroundService.Workers
 {
-    public class DailyMealLogWorker
+    public class DailyMealLogWorker : IWorkerBase
     {
         private readonly ILogger<DailyMealLogWorker> _logger;
         private readonly IServiceScopeFactory _scopeFactory;

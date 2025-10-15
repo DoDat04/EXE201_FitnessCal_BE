@@ -1,10 +1,11 @@
-﻿using FitnessCal.BLL.Define;
+﻿using FitnessCal.BLL.BackgroundService.Define;
+using FitnessCal.BLL.Define;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace FitnessCal.BLL.BackgroundService
+namespace FitnessCal.BLL.BackgroundService.Workers
 {
-    public class ChangePaymentStatusWorker
+    public class ChangePaymentStatusWorker : IWorkerBase
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<ChangePaymentStatusWorker> _logger;
