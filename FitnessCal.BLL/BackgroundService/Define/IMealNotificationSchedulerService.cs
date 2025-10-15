@@ -1,4 +1,4 @@
-namespace FitnessCal.Worker.Define
+namespace FitnessCal.BLL.BackgroundService.Define
 {
     public interface IMealNotificationSchedulerService
     {

@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace FitnessCal.BLL.BackgroundService.Define
 {
-    public interface IDailySchedulerService
+    public interface IChangePaymentStatusGeneratorService
     {
-        TimeSpan GetDelayUntilNextRun();
+        Task ExecuteChangePaymentStatusJob(CancellationToken stoppingToken);
     }
 }

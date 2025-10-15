@@ -1,45 +1,45 @@
 ﻿using FitnessCal.BLL.Define;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
-public class CleanupUsedOTPWorker
+namespace FitnessCal.BLL.BackgroundService
 {
-    private readonly ILogger<CleanupUsedOTPWorker> _logger;
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly TimeSpan _runInterval;
-
-    public CleanupUsedOTPWorker(ILogger<CleanupUsedOTPWorker> logger, IServiceScopeFactory scopeFactory)
+    public class CleanupUsedOTPWorker
     {
-        _logger = logger;
-        _scopeFactory = scopeFactory;
-        _runInterval = TimeSpan.FromHours(1); // khoảng thời gian chạy lại
-    }
+        private readonly ILogger<CleanupUsedOTPWorker> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly TimeSpan _runInterval;
 
-    public async Task RunAsync(CancellationToken stoppingToken = default)
-    {
-        _logger.LogInformation("CleanupUsedOTPWorker started.");
-
-        while (!stoppingToken.IsCancellationRequested)
+        public CleanupUsedOTPWorker(ILogger<CleanupUsedOTPWorker> logger, IServiceScopeFactory scopeFactory)
         {
-            try
+            _logger = logger;
+            _scopeFactory = scopeFactory;
+            _runInterval = TimeSpan.FromHours(1); // khoảng thời gian chạy lại
+        }
+
+        public async Task RunAsync(CancellationToken stoppingToken = default)
+        {
+            _logger.LogInformation("CleanupUsedOTPWorker started.");
+
+            while (!stoppingToken.IsCancellationRequested)
             {
-                using var scope = _scopeFactory.CreateScope();
-                var otpService = scope.ServiceProvider.GetRequiredService<IOTPService>();
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var otpService = scope.ServiceProvider.GetRequiredService<IOTPService>();
 
-                await otpService.CleanupUsedOTPsAsync();
-                await otpService.CleanupExpiredOTPsAsync();
+                    await otpService.CleanupUsedOTPsAsync();
+                    await otpService.CleanupExpiredOTPsAsync();
 
-                _logger.LogInformation("Used & expired OTPs cleaned up successfully at {time}.", DateTimeOffset.UtcNow);
+                    _logger.LogInformation("Used & expired OTPs cleaned up successfully at {time}.", DateTimeOffset.UtcNow);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error cleaning up OTPs at {time}", DateTimeOffset.UtcNow);
+                }
+
+                await Task.Delay(_runInterval, stoppingToken);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error cleaning up OTPs at {time}", DateTimeOffset.UtcNow);
-            }
-
-            await Task.Delay(_runInterval, stoppingToken);
         }
     }
 }

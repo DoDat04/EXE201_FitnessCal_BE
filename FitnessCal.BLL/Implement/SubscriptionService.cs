@@ -3,6 +3,7 @@ using FitnessCal.BLL.Define;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 namespace FitnessCal.BLL.Implement
 {
@@ -139,6 +140,20 @@ namespace FitnessCal.BLL.Implement
                 .GetAllAsync(s => s.PaymentStatus == "paid" && s.PackageId == packageId);
 
             return subscriptions.Count();
+        }
+
+        public Task CheckAndUpdateExpiredSubscriptionsAsync(CancellationToken cancellationToken = default)
+        {
+            var now = DateTime.Now;
+
+            var expiredSubscriptions = _unitOfWork.UserSubscriptions
+                .GetAllAsync(s => s.EndDate <= now && s.PaymentStatus == "paid").Result;
+            foreach (var subscription in expiredSubscriptions)
+            {
+                subscription.PaymentStatus = "expired";
+                _unitOfWork.UserSubscriptions.UpdateAsync(subscription).Wait(cancellationToken);
+            }
+            return _unitOfWork.Save();
         }
     }
 }

@@ -1,10 +1,10 @@
 using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.CommonDTO;
-using FitnessCal.Worker.Define;
+using FitnessCal.BLL.BackgroundService.Define;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace FitnessCal.Worker.Implement
+namespace FitnessCal.BLL.BackgroundService.Implement
 {
     public class MealNotificationSchedulerService : IMealNotificationSchedulerService
     {

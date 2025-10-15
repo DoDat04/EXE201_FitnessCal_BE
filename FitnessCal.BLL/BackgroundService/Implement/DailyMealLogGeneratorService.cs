@@ -1,6 +1,6 @@
-﻿using FitnessCal.BLL.Define;
+﻿using FitnessCal.BLL.BackgroundService.Define;
+using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.UserMealLogDTO.Request;
-using FitnessCal.Worker.Define;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FitnessCal.Worker.Implement
+namespace FitnessCal.BLL.BackgroundService.Implement
 {
     public class DailyMealLogGeneratorService : IDailyMealLogGeneratorService
     {
