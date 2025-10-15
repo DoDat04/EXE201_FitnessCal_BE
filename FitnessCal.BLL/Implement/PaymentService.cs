@@ -190,6 +190,15 @@ namespace FitnessCal.BLL.Implement
                 var sub = await _uow.UserSubscriptions.GetByIdAsync(payment.SubscriptionId);
                 if (sub != null)
                 {
+
+                    sub.StartDate = paidAt.UtcDateTime;
+
+                    var pkgForDate = await _uow.PremiumPackages.GetByIdAsync(sub.PackageId);
+                    if (pkgForDate != null)
+                    {
+                        sub.EndDate = CalculateEndDate(sub.StartDate, pkgForDate.DurationMonths);
+                    }
+
                     sub.PaymentStatus = "paid";
                     await _uow.UserSubscriptions.UpdateAsync(sub);
                     await _uow.Save();
@@ -263,14 +272,20 @@ namespace FitnessCal.BLL.Implement
                 Amount = payment.Amount,
                 PackageName = pkg?.Name,
                 DurationMonths = pkg?.DurationMonths,
-                CreatedAt = payment.CreatedAt,
-                PaidAt = payment.PaidAt
+                CreatedAt = ConvertUtcToVietnamTime(payment.CreatedAt),
+                PaidAt = payment.PaidAt.HasValue ? ConvertUtcToVietnamTime(payment.PaidAt.Value) : null,
+                StartDate = sub != null ? ConvertUtcToVietnamTime(sub.StartDate) : DateTime.MinValue,
+                EndDate = sub != null ? ConvertUtcToVietnamTime(sub.EndDate) : DateTime.MinValue
             };
         }
 
         public async Task<List<GetAllPaymentsResponse>> GetAllPayments()
         {
             var payments = await _uow.Payments.GetAllWithDetailsAsync();
+            payments = payments
+                .Where(p => p.PaidAt.HasValue)
+                .OrderByDescending(p => p.PaidAt)
+                .ToList();
             var result = new List<GetAllPaymentsResponse>();
 
             foreach (var payment in payments)
@@ -289,14 +304,12 @@ namespace FitnessCal.BLL.Implement
                     OrderCode = payment.PayosOrderCode,
                     Amount = payment.Amount,
                     Status = payment.Status,
-                    CreatedAt = payment.CreatedAt,
-                    PaidAt = payment.PaidAt,
+                    CreatedAt = ConvertUtcToVietnamTime(payment.CreatedAt),
+                    PaidAt = payment.PaidAt.HasValue ? ConvertUtcToVietnamTime(payment.PaidAt.Value) : null,
                     UserEmail = user?.Email ?? "N/A",
                     UserName = $"{user?.FirstName ?? ""} {user?.LastName ?? ""}".Trim() ?? "N/A",
                     PackageName = pkg?.Name ?? "N/A",
-                    DurationMonths = pkg?.DurationMonths ?? 0,
-                    StartDate = sub?.StartDate ?? DateTime.MinValue,
-                    EndDate = sub?.EndDate ?? DateTime.MinValue
+                    DurationMonths = pkg?.DurationMonths ?? 0
                 });
             }
 

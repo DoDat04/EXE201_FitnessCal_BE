@@ -27,6 +27,8 @@ namespace FitnessCal.BLL.DTO.PaymentDTO
         public decimal? DurationMonths { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? PaidAt { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
     }
 
     public class GetAllPaymentsResponse
@@ -40,8 +42,6 @@ namespace FitnessCal.BLL.DTO.PaymentDTO
         public string UserName { get; set; } = null!;
         public string PackageName { get; set; } = null!;
         public decimal DurationMonths { get; set; }
-        public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
     }
 
     public class CancelPaymentRequest
