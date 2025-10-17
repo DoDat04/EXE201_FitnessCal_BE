@@ -378,56 +378,25 @@ public class FoodService : IFoodService
             // Lưu món ăn mới vào DB để training
             await _saveTrainingData.SaveTrainingDataAsync(parsedFood);
 
-            // 5. Luôn tạo UserCapturedFood với thông tin từ AI
-            var userId = GetCurrentUserId();
-            var userCapturedFood = new UserCapturedFood
+            // 5. KHÔNG lưu vào UserCapturedFood ngay. Chỉ trả về bản xem trước để người dùng xác nhận.
+            var preview = new
             {
-                UserId = userId,
                 Name = parsedFood.Name,
-                Calories = parsedFood.Calories,
-                Carbs = parsedFood.Carbs,
-                Fat = parsedFood.Fat,
-                Protein = parsedFood.Protein
+                Calories = Math.Round(parsedFood.Calories, 1),
+                Carbs = Math.Round(parsedFood.Carbs, 1),
+                Fat = Math.Round(parsedFood.Fat, 1),
+                Protein = Math.Round(parsedFood.Protein, 1)
             };
 
-            await _unitOfWork.UserCapturedFoods.AddAsync(userCapturedFood);
-            await _unitOfWork.Save();
-
-            // 6. Tạo response với thông tin từ AI
-            var foundFoods = new List<SearchFoodResponseDTO>
-            {
-                new SearchFoodResponseDTO
-                {
-                    Id = userCapturedFood.Id,
-                    Name = userCapturedFood.Name,
-                    Calories = userCapturedFood.Calories,
-                    Carbs = userCapturedFood.Carbs,
-                    Fat = userCapturedFood.Fat,
-                    Protein = userCapturedFood.Protein,
-                    ServingUnit = "1 phần",
-                    SourceType = "UserCapturedFood",
-                    FoodId = null,
-                    DishId = userCapturedFood.Id
-                }
-            };
-
-            // 7. Trả kết quả
+            // 6. Trả kết quả xem trước
             return new ApiResponse<object>
             {
                 Success = true,
-                Message = "Đã nhận diện và lưu món ăn thành công",
+                Message = "Đã nhận diện món ăn từ ảnh. Vui lòng xác nhận để lưu.",
                 Data = new
                 {
                     ImageUrl = publicUrl,
-                    Foods = foundFoods,
-                    TotalNutrition = new
-                    {
-                        Calories = Math.Round(userCapturedFood.Calories, 1),
-                        Carbs = Math.Round(userCapturedFood.Carbs, 1),
-                        Fat = Math.Round(userCapturedFood.Fat, 1),
-                        Protein = Math.Round(userCapturedFood.Protein, 1)
-                    },
-                    NotFound = new List<string>(),
+                    DetectedFood = preview,
                     RawText = response
                 }
             };
@@ -602,6 +571,59 @@ public class FoodService : IFoodService
         public double Carbs { get; set; }
         public double Fat { get; set; }
         public double Protein { get; set; }
+    }
+
+    public async Task<ApiResponse<ConfirmCapturedFoodResponseDTO>> ConfirmCapturedFoodAsync(ConfirmCapturedFoodRequestDTO request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+
+            var userCapturedFood = new UserCapturedFood
+            {
+                UserId = userId,
+                Name = request.Name,
+                Calories = request.Calories,
+                Carbs = request.Carbs,
+                Fat = request.Fat,
+                Protein = request.Protein
+            };
+
+            await _unitOfWork.UserCapturedFoods.AddAsync(userCapturedFood);
+            var saved = await _unitOfWork.Save();
+
+            if (!saved)
+            {
+                throw new Exception("Không thể lưu món ăn đã nhận diện");
+            }
+
+            var response = new ConfirmCapturedFoodResponseDTO
+            {
+                CapturedFoodId = userCapturedFood.Id,
+                Name = userCapturedFood.Name,
+                Calories = userCapturedFood.Calories,
+                Carbs = userCapturedFood.Carbs,
+                Fat = userCapturedFood.Fat,
+                Protein = userCapturedFood.Protein
+            };
+
+            return new ApiResponse<ConfirmCapturedFoodResponseDTO>
+            {
+                Success = true,
+                Message = "Đã lưu món ăn đã nhận diện",
+                Data = response
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error confirming captured food");
+            return new ApiResponse<ConfirmCapturedFoodResponseDTO>
+            {
+                Success = false,
+                Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                Data = null
+            };
+        }
     }
 
     public async Task<SearchFoodResponseDTO> GetFoodDetailsAsync(int id, string type)

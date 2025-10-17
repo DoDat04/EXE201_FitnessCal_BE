@@ -188,6 +188,37 @@ namespace FitnessCal.API.Controllers
             }
         }
 
+        [HttpPost("confirm-captured-food")]
+        public async Task<ActionResult<ApiResponse<ConfirmCapturedFoodResponseDTO>>> ConfirmCapturedFood([FromBody] ConfirmCapturedFoodRequestDTO request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new ApiResponse<ConfirmCapturedFoodResponseDTO>
+                    {
+                        Success = false,
+                        Message = "Dữ liệu không hợp lệ",
+                        Data = null
+                    });
+                }
+
+                var result = await _foodService.ConfirmCapturedFoodAsync(request);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error confirming captured food");
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR,
+                    new ApiResponse<ConfirmCapturedFoodResponseDTO>
+                    {
+                        Success = false,
+                        Message = ResponseCodes.Messages.INTERNAL_ERROR,
+                        Data = null
+                    });
+            }
+        }
+
         [HttpPost("add-captured-food-to-meal")]
         public async Task<ActionResult<ApiResponse<AddCapturedFoodToMealResponseDTO>>> AddCapturedFoodToMeal([FromBody] AddCapturedFoodToMealRequestDTO request)
         {

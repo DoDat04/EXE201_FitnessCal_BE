@@ -14,6 +14,7 @@ namespace FitnessCal.BLL.Define
         Task<IEnumerable<PredefinedDish?>> SearchPredefinedDishByNameAsync(string name);
         Task<string> GenerateFoodsInformationAsync(string prompt);
         Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request);
+        Task<ApiResponse<ConfirmCapturedFoodResponseDTO>> ConfirmCapturedFoodAsync(ConfirmCapturedFoodRequestDTO request);
         Task<SearchFoodResponseDTO> GetFoodDetailsAsync(int id, string type);
         Task<AddCapturedFoodToMealResponseDTO> AddCapturedFoodToMealAsync(AddCapturedFoodToMealRequestDTO request);
         Task<List<GetUserCapturedFoodsResponseDTO>> GetUserCapturedFoodsAsync();
