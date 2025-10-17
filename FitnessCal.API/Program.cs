@@ -1,7 +1,6 @@
 ﻿using FitnessCal.DAL.Define;
 using FitnessCal.DAL;
 using FitnessCal.BLL.Define;
-using FitnessCal.BLL.BackgroundService; // DailyMealLogWorker
 using Microsoft.EntityFrameworkCore;
 using FitnessCal.Domain;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -14,6 +13,7 @@ using MongoDB.Driver;
 using Microsoft.AspNetCore.HttpOverrides;
 using FitnessCal.BLL.BackgroundService.Define;
 using FitnessCal.BLL.BackgroundService.Implement;
+using FitnessCal.BLL.BackgroundService.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -158,10 +158,13 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // ========== Worker Service ==========
-builder.Services.AddSingleton<ChangePaymentStatusWorker>();
-builder.Services.AddSingleton<DailyMealLogWorker>();
-builder.Services.AddSingleton<MealNotificationWorker>(); // ✅ thêm dòng này
-builder.Services.AddSingleton<CleanupUsedOTPWorker>();
+builder.Services.Scan(scan => scan
+    .FromAssemblyOf<ChangePaymentStatusWorker>() 
+    .AddClasses(classes => classes.InNamespaceOf<ChangePaymentStatusWorker>()) 
+    .AsSelf() 
+    .WithSingletonLifetime() 
+);
+
 builder.Services.AddScoped<IChangePaymentStatusGeneratorService, ChangePaymentStatusGeneratorService>();
 builder.Services.AddScoped<IDailyMealLogGeneratorService, DailyMealLogGeneratorService>();
 builder.Services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
@@ -198,7 +201,9 @@ app.MapControllers();
 var worker = app.Services.GetRequiredService<DailyMealLogWorker>();
 var worker1= app.Services.GetRequiredService<MealNotificationWorker>();
 var worker2= app.Services.GetRequiredService<ChangePaymentStatusWorker>();
+var worker3= app.Services.GetRequiredService<DeleteFailedPaymentStatusWorker>();
 worker.Start();
 worker1?.Start();
 worker2?.Start();
+worker3?.Start();
 app.Run();

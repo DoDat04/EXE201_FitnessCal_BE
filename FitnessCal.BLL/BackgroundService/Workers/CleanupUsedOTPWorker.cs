@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace FitnessCal.BLL.BackgroundService
+namespace FitnessCal.BLL.BackgroundService.Workers
 {
     public class CleanupUsedOTPWorker
     {

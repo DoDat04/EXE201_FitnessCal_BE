@@ -4,9 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace FitnessCal.BLL.BackgroundService
+namespace FitnessCal.BLL.BackgroundService.Workers
 {
-    public class MealNotificationWorker
+    public class MealNotificationWorker : IWorkerBase
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<MealNotificationWorker> _logger;

@@ -155,5 +155,22 @@ namespace FitnessCal.BLL.Implement
             }
             return _unitOfWork.Save();
         }
+
+        public Task DeleteFailedPaymentsAsync(CancellationToken cancellationToken = default)
+        {
+            var failedPayments = _unitOfWork.Payments
+                .GetAllAsync(s => s.Status == "failed").Result;
+            var failedSubscriptions = _unitOfWork.UserSubscriptions
+                .GetAllAsync(s => s.PaymentStatus == "failed").Result;
+            foreach (var subscription in failedSubscriptions)
+            {
+                _unitOfWork.UserSubscriptions.DeleteAsync(subscription).Wait(cancellationToken);
+            }
+            foreach (var payment in failedPayments)
+            {
+                _unitOfWork.Payments.DeleteAsync(payment).Wait(cancellationToken);
+            }
+            return _unitOfWork.Save();
+        }
     }
 }

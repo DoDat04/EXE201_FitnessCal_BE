@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace FitnessCal.Domain;
 
@@ -54,6 +52,7 @@ public partial class FitnessCalContext : DbContext
     public virtual DbSet<UserNotificationSettings> UserNotificationSettings { get; set; }
 
     public virtual DbSet<UserCapturedFood> UserCapturedFoods { get; set; }
+    public virtual DbSet<Feedbacks> Feedbacks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -899,6 +898,41 @@ public partial class FitnessCalContext : DbContext
             entity.HasOne(d => d.User).WithMany()
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("usercapturedfood_userid_fkey");
+        });
+
+        modelBuilder.Entity<Feedbacks>(entity =>
+        {
+            entity.ToTable("feedback");
+
+            entity.HasKey(e => e.FeedbackId)
+                .HasName("feedbacks_pkey");
+
+            entity.Property(e => e.FeedbackId)
+                .HasColumnName("feedbackid")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .IsRequired()
+                .HasColumnName("userid")
+                .HasColumnType("uuid");
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at")
+                .HasColumnType("timestamp with time zone");
+
+            entity.Property(e => e.RatingStars)
+                .HasColumnName("rating_stars")
+                .HasConversion<int>() 
+                .HasColumnType("int");
+
+            entity.Property(e => e.Contribution)
+                .HasColumnName("contribution")
+                .HasColumnType("text");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .HasConstraintName("feedbacks_user_id_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);
