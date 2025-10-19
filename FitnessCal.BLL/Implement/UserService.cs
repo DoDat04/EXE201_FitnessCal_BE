@@ -487,5 +487,81 @@ namespace FitnessCal.BLL.Implement
                 });
             return user;
         }
+
+        public async Task<ConversionRateResponseDTO> GetConversionRateAsync()
+        {
+            try
+            {
+                // Lấy tất cả users và subscriptions
+                var allUsers = await _unitOfWork.Users.GetAllAsync(u => u.IsActive == 1);
+                var allSubscriptions = await _unitOfWork.UserSubscriptions
+                    .GetAllAsync(s => s.PaymentStatus == "paid" || s.PaymentStatus == "expired");
+
+                // Tìm tháng đầu tiên có user đăng ký
+                var firstUserDate = allUsers.Min(u => u.CreatedAt);
+                var lastUserDate = allUsers.Max(u => u.CreatedAt);
+                
+                // Tìm tháng đầu tiên có subscription
+                var firstSubscriptionDate = allSubscriptions.Any() ? 
+                    allSubscriptions.Min(s => s.StartDate) : DateTime.UtcNow;
+                
+                // Lấy khoảng thời gian từ tháng đầu tiên đến hiện tại
+                var startDate = new DateTime(Math.Min(firstUserDate.Year, firstSubscriptionDate.Year), 
+                    Math.Min(firstUserDate.Month, firstSubscriptionDate.Month), 1);
+                var currentDate = DateTime.UtcNow;
+                
+                var chartData = new List<ConversionRateDataDTO>();
+                var cumulativeFreeUsers = 0;
+                var cumulativePremiumUsers = 0;
+
+                // Tạo dữ liệu cho từng tháng từ tháng đầu tiên đến hiện tại
+                var currentMonth = startDate;
+                while (currentMonth <= currentDate)
+                {
+                    var monthEnd = currentMonth.AddMonths(1);
+                    var monthLabel = $"Tháng {currentMonth.Month}/{currentMonth.Year}";
+
+                    // Đếm số user free trong tháng 
+                    var freeUsersInMonth = allUsers.Count(u => 
+                        u.CreatedAt >= currentMonth && u.CreatedAt < monthEnd);
+
+                    // Đếm số user mới chuyển sang premium trong tháng
+                    var newPremiumUsersInMonth = allSubscriptions.Count(s => 
+                        s.StartDate >= currentMonth && s.StartDate < monthEnd);
+
+                    // Tính conversion rate
+                    var conversionRate = freeUsersInMonth > 0 ? 
+                        (double)newPremiumUsersInMonth / freeUsersInMonth * 100 : 0;
+
+                    cumulativeFreeUsers += freeUsersInMonth;
+                    cumulativePremiumUsers += newPremiumUsersInMonth;
+
+                    chartData.Add(new ConversionRateDataDTO
+                    {
+                        MonthLabel = monthLabel,
+                        TotalFreeUsers = freeUsersInMonth,
+                        NewPremiumUsers = newPremiumUsersInMonth,
+                        ConversionRate = Math.Round(conversionRate, 2),
+                        CumulativeFreeUsers = cumulativeFreeUsers,
+                        CumulativePremiumUsers = cumulativePremiumUsers
+                    });
+
+                    currentMonth = currentMonth.AddMonths(1);
+                }
+
+                _logger.LogInformation("Conversion rate data retrieved successfully. Chart data points: {Count}", 
+                    chartData.Count);
+
+                return new ConversionRateResponseDTO
+                {
+                    ChartData = chartData
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving conversion rate data");
+                throw new Exception(ResponseCodes.Messages.DATABASE_ERROR);
+            }
+        }
     }
 }

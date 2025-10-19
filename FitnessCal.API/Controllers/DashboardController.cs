@@ -88,5 +88,37 @@ namespace FitnessCal.API.Controllers
                 return StatusCode(500, response);
             }
         }
+
+        // New: Conversion rate endpoint for admin dashboard
+        [HttpGet("conversion-rate")]
+        public async Task<ActionResult<ApiResponse<ConversionRateResponseDTO>>> GetConversionRate()
+        {
+            try
+            {
+                var conversionData = await _userService.GetConversionRateAsync();
+
+                var response = new ApiResponse<ConversionRateResponseDTO>
+                {
+                    Success = true,
+                    Message = "Conversion rate data retrieved successfully",
+                    Data = conversionData
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving conversion rate data");
+
+                var response = new ApiResponse<ConversionRateResponseDTO>
+                {
+                    Success = false,
+                    Message = "Failed to retrieve conversion rate data",
+                    Data = null
+                };
+
+                return StatusCode(500, response);
+            }
+        }
     }
 }

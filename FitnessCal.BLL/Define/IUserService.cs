@@ -18,5 +18,7 @@ namespace FitnessCal.BLL.Define
 
         Task<RevenueStatisticsDTO> GetRevenueStatisticsAsync(DateTime? startDate = null, DateTime? endDate = null);
 
+        Task<ConversionRateResponseDTO> GetConversionRateAsync();
+
     }
 }
