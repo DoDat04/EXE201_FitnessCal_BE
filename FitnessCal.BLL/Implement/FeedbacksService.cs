@@ -37,11 +37,21 @@ namespace FitnessCal.BLL.Implement
                 Contribution = newFeedback.Contribution
             };
         }
-        public async Task<IEnumerable<FeedbacksResponseDTO>> GetAllFeedbacksAsync()
+        public async Task<IEnumerable<FeedbacksResponseDTO>> GetAllFeedbacksAsync(int? stars, DateTime? searchDate)
         {
-            var feedbacks = await _unitOfWork.Feedbacks.GetAllAsync();
+            var feedbacksQuery = await _unitOfWork.Feedbacks.GetAllAsync(f =>
+                    !stars.HasValue || f.RatingStars == stars.Value
+                );
 
-            var feedbackList = feedbacks.Select(f => new FeedbacksResponseDTO
+            if (searchDate.HasValue)
+            {
+                var localDate = searchDate.Value.Date;
+                feedbacksQuery = feedbacksQuery
+                    .Where(f => f.CreatedAt.ToLocalTime().Date == localDate)
+                    .ToList();
+            }
+
+            return feedbacksQuery.Select(f => new FeedbacksResponseDTO
             {
                 FeedbackId = f.FeedbackId,
                 UserId = f.UserId,
@@ -49,9 +59,16 @@ namespace FitnessCal.BLL.Implement
                 RatingStars = f.RatingStars,
                 Contribution = f.Contribution
             }).ToList();
-
-            return feedbackList;
         }
-
+        public async Task<double> AverageRatingStarsAsync()
+        {
+            var feedbacks = await _unitOfWork.Feedbacks.GetAllAsync();
+            if (!feedbacks.Any())
+            {
+                return 0;
+            }
+            var averageRating = (double)feedbacks.Average(f => f.RatingStars);
+            return averageRating;
+        }
     }
 }

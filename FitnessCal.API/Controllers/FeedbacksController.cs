@@ -36,16 +36,29 @@ namespace FitnessCal.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IEnumerable<FeedbacksResponseDTO>> GetAllFeedbacks()
+        public async Task<IEnumerable<FeedbacksResponseDTO>> GetAllFeedbacks(int? stars, DateTime? searchDate)
         {
             try
             {
-                var feedbacks = await _feedbacksService.GetAllFeedbacksAsync();
+                var feedbacks = await _feedbacksService.GetAllFeedbacksAsync(stars, searchDate);
                 return feedbacks;
             }
             catch (Exception)
             {
                 return Enumerable.Empty<FeedbacksResponseDTO>();
+            }
+        }
+        [HttpGet("average-rating")]
+        public async Task<ActionResult<double>> GetAverageRating()
+        {
+            try
+            {
+                var averageRating = await _feedbacksService.AverageRatingStarsAsync();
+                return Ok(averageRating);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Lỗi server: {ex.Message}");
             }
         }
     }
