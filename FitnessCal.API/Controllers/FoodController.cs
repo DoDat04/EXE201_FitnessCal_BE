@@ -301,6 +301,53 @@ namespace FitnessCal.API.Controllers
             }
         }
 
+        [HttpGet("user-captured-food/{id}")]
+        public async Task<ActionResult<ApiResponse<GetUserCapturedFoodDetailsResponseDTO>>> GetUserCapturedFoodDetails(int id)
+        {
+            try
+            {
+                var result = await _foodService.GetUserCapturedFoodDetailsAsync(id);
+
+                return Ok(new ApiResponse<GetUserCapturedFoodDetailsResponseDTO>
+                {
+                    Success = true,
+                    Message = "Lấy thông tin chi tiết món ăn đã chụp thành công",
+                    Data = result
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                _logger.LogWarning(ex, "UserCapturedFood not found with id {Id}", id);
+                return StatusCode(ResponseCodes.StatusCodes.NOT_FOUND, new ApiResponse<GetUserCapturedFoodDetailsResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized access to UserCapturedFood with id {Id}", id);
+                return StatusCode(ResponseCodes.StatusCodes.UNAUTHORIZED, new ApiResponse<GetUserCapturedFoodDetailsResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Data = null
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while getting user captured food details for id {Id}", id);
+                return StatusCode(ResponseCodes.StatusCodes.INTERNAL_SERVER_ERROR,
+                    new ApiResponse<GetUserCapturedFoodDetailsResponseDTO>
+                    {
+                        Success = false,
+                        Message = ex.Message,
+                        Data = null
+                    });
+            }
+        }
+
         [HttpGet("details/{id}")]
         public async Task<ActionResult<ApiResponse<SearchFoodResponseDTO>>> GetFoodDetails(int id, [FromQuery] string type)
         {

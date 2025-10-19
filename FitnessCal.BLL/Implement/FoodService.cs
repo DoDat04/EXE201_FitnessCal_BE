@@ -721,4 +721,40 @@ public class FoodService : IFoodService
 
         return response;
     }
+
+    public async Task<GetUserCapturedFoodDetailsResponseDTO> GetUserCapturedFoodDetailsAsync(int id)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var userCapturedFood = await _unitOfWork.UserCapturedFoods.GetByIdAsync(id);
+            
+            if (userCapturedFood == null)
+            {
+                throw new KeyNotFoundException("UserCapturedFood not found");
+            }
+
+            // Kiểm tra quyền truy cập - chỉ user sở hữu mới được xem
+            if (userCapturedFood.UserId != userId)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền truy cập món ăn này");
+            }
+
+            return new GetUserCapturedFoodDetailsResponseDTO
+            {
+                Id = userCapturedFood.Id,
+                Name = userCapturedFood.Name,
+                Calories = userCapturedFood.Calories,
+                Carbs = userCapturedFood.Carbs,
+                Fat = userCapturedFood.Fat,
+                Protein = userCapturedFood.Protein,
+                SourceType = "UserCapturedFood"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while getting user captured food details for id {Id}", id);
+            throw;
+        }
+    }
 }

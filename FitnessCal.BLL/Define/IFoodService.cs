@@ -18,5 +18,6 @@ namespace FitnessCal.BLL.Define
         Task<SearchFoodResponseDTO> GetFoodDetailsAsync(int id, string type);
         Task<AddCapturedFoodToMealResponseDTO> AddCapturedFoodToMealAsync(AddCapturedFoodToMealRequestDTO request);
         Task<List<GetUserCapturedFoodsResponseDTO>> GetUserCapturedFoodsAsync();
+        Task<GetUserCapturedFoodDetailsResponseDTO> GetUserCapturedFoodDetailsAsync(int id);
     }
 }
