@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using FitnessCal.BLL.Transformer;
+using FitnessCal.BLL.Helpers;
 
 namespace FitnessCal.BLL.Implement;
 
@@ -23,9 +24,11 @@ public class FoodService : IFoodService
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly TransformQueries _transformQueries;
     private readonly SaveTrainingData _saveTrainingData;
+    private readonly CurrentUserIdHelper _currentUserIdHelper;
 
-    public FoodService(IUnitOfWork unitOfWork, ILogger<FoodService> logger, IGeminiService geminiService, IConfiguration configuration, IHttpContextAccessor httpContextAccessor,
-        IChatMessageRepository chatMessageRepository)
+    public FoodService(IUnitOfWork unitOfWork, ILogger<FoodService> logger, IGeminiService geminiService, 
+        IConfiguration configuration, IHttpContextAccessor httpContextAccessor,
+        IChatMessageRepository chatMessageRepository, CurrentUserIdHelper currentUserIdHelper)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
@@ -40,6 +43,7 @@ public class FoodService : IFoodService
         var classifyData = new ClassifyData(_geminiService);
         _saveTrainingData = new SaveTrainingData(_unitOfWork, classifyData, logger);
         _transformQueries = new TransformQueries(_geminiService);
+        _currentUserIdHelper = currentUserIdHelper;
     }
 
     public async Task<SearchFoodPaginationResponseDTO> SearchFoodsAsync(string? searchTerm = null, int page = 1,
@@ -166,7 +170,7 @@ public class FoodService : IFoodService
 
     public async Task<string> GenerateFoodsInformationAsync(string userPrompt)
     {
-        var userId = GetCurrentUserId();
+        var userId = _currentUserIdHelper.GetCurrentUserId();
         // Chuyển sang async version
         var normalizedPrompt = await _transformQueries.TransformUserQueryAsync(userPrompt);
 
@@ -305,15 +309,6 @@ public class FoodService : IFoodService
         return aiResponse;
     }
 
-    private Guid GetCurrentUserId()
-    {
-        var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null)
-            throw new UnauthorizedAccessException("UserId không tồn tại trong token");
-
-        return Guid.Parse(userIdClaim.Value);
-    }
-
     public async Task<ApiResponse<object>> UploadAndDetectFood(UploadFileRequest request)
     {
         if (request.File.Length == 0)
@@ -329,7 +324,7 @@ public class FoodService : IFoodService
         try
         {
             // 1. Upload file lên Supabase
-            var fileName = $"{GetCurrentUserId()}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{request.File.FileName}";
+            var fileName = $"{_currentUserIdHelper.GetCurrentUserId()}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}_{request.File.FileName}";
 
             byte[] fileBytes;
             await using (var memoryStream = new MemoryStream())
@@ -417,7 +412,7 @@ public class FoodService : IFoodService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserIdHelper.GetCurrentUserId();
 
             // 1. Kiểm tra UserCapturedFood có tồn tại và thuộc về user hiện tại
             var capturedFood = await _unitOfWork.UserCapturedFoods.GetByIdAsync(request.CapturedFoodId);
@@ -500,8 +495,8 @@ public class FoodService : IFoodService
     {
         try
         {
-            var userId = GetCurrentUserId();
-            
+            var userId = _currentUserIdHelper.GetCurrentUserId();
+
             var userCapturedFoods = await _unitOfWork.UserCapturedFoods.GetAllAsync(ucf => ucf.UserId == userId);
             
             var result = userCapturedFoods.Select(ucf => new GetUserCapturedFoodsResponseDTO
@@ -577,7 +572,7 @@ public class FoodService : IFoodService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserIdHelper.GetCurrentUserId();
 
             var userCapturedFood = new UserCapturedFood
             {
@@ -726,7 +721,7 @@ public class FoodService : IFoodService
     {
         try
         {
-            var userId = GetCurrentUserId();
+            var userId = _currentUserIdHelper.GetCurrentUserId();
             var userCapturedFood = await _unitOfWork.UserCapturedFoods.GetByIdAsync(id);
             
             if (userCapturedFood == null)

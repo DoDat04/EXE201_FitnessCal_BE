@@ -6,6 +6,8 @@ namespace FitnessCal.BLL.Define
     public interface IFeedbacksService
     {
         Task<CreateFeedbackResponseDTO> CreateFeedbackAsync(CreateFeedbackRequestDTO feedback);
+        Task<UpdateFeedbackResponseDTO> UpdateFeedbackAsync(int id, UpdateFeedbackRequestDTO feedback);
+        Task<bool> DeleteFeedbackAsync(int id);
         Task<IEnumerable<FeedbacksResponseDTO>> GetAllFeedbacksAsync(int? stars, DateTime? searchDate);
         Task<double> AverageRatingStarsAsync();
     }

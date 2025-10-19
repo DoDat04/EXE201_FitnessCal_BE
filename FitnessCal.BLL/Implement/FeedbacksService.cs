@@ -1,6 +1,8 @@
-﻿using FitnessCal.BLL.Define;
+﻿using Azure.Core;
+using FitnessCal.BLL.Define;
 using FitnessCal.BLL.DTO.FeedbacksDTO.Request;
 using FitnessCal.BLL.DTO.FeedbacksDTO.Response;
+using FitnessCal.BLL.Helpers;
 using FitnessCal.DAL.Define;
 using FitnessCal.Domain;
 
@@ -9,10 +11,12 @@ namespace FitnessCal.BLL.Implement
     public class FeedbacksService : IFeedbacksService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly CurrentUserIdHelper _currentUserIdHelper;
 
-        public FeedbacksService(IUnitOfWork unitOfWork)
+        public FeedbacksService(IUnitOfWork unitOfWork, CurrentUserIdHelper currentUserIdHelper)
         {
             _unitOfWork = unitOfWork;
+            _currentUserIdHelper = currentUserIdHelper;
         }
 
         public async Task<CreateFeedbackResponseDTO> CreateFeedbackAsync(CreateFeedbackRequestDTO feedback)
@@ -69,6 +73,46 @@ namespace FitnessCal.BLL.Implement
             }
             var averageRating = (double)feedbacks.Average(f => f.RatingStars);
             return averageRating;
+        }
+
+        public async Task<UpdateFeedbackResponseDTO> UpdateFeedbackAsync(int feedbackId, UpdateFeedbackRequestDTO request)
+        {
+            var currentUserId = _currentUserIdHelper.GetCurrentUserId();
+            var feedback = await _unitOfWork.Feedbacks
+                .FirstOrDefaultAsync(f => f.FeedbackId == feedbackId && f.UserId == currentUserId);
+
+            if (feedback == null)
+            {
+                throw new KeyNotFoundException("Feedback không tồn tại hoặc bạn không có quyền sửa.");
+            }
+
+            feedback.RatingStars = request.RatingStars;
+            feedback.Contribution = request.Contribution;
+
+            await _unitOfWork.Feedbacks.UpdateAsync(feedback);
+            await _unitOfWork.Save();
+
+            return new UpdateFeedbackResponseDTO
+            {
+                FeedbackId = feedback.FeedbackId,
+                UserId = feedback.UserId,
+                CreatedAt = feedback.CreatedAt,
+                RatingStars = feedback.RatingStars,
+                Contribution = feedback.Contribution
+            };
+        }
+        public async Task<bool> DeleteFeedbackAsync(int feedbackId)
+        {
+            var currentUserId = _currentUserIdHelper.GetCurrentUserId();
+            var feedback = await _unitOfWork.Feedbacks
+                .FirstOrDefaultAsync(f => f.FeedbackId == feedbackId && f.UserId == currentUserId);
+            if (feedback == null)
+            {
+                throw new KeyNotFoundException("Feedback không tồn tại hoặc bạn không có quyền xóa.");
+            }
+            await _unitOfWork.Feedbacks.DeleteAsync(feedback);
+            await _unitOfWork.Save();
+            return true;
         }
     }
 }

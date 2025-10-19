@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using FitnessCal.BLL.BackgroundService.Define;
 using FitnessCal.BLL.BackgroundService.Implement;
 using FitnessCal.BLL.BackgroundService.Workers;
+using FitnessCal.BLL.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -168,6 +169,9 @@ builder.Services.Scan(scan => scan
 builder.Services.AddScoped<IChangePaymentStatusGeneratorService, ChangePaymentStatusGeneratorService>();
 builder.Services.AddScoped<IDailyMealLogGeneratorService, DailyMealLogGeneratorService>();
 builder.Services.AddSingleton<IDailySchedulerService, DailySchedulerService>();
+
+// ========== Helper ==========
+builder.Services.AddScoped<CurrentUserIdHelper>();
 var app = builder.Build();
 
 // ========== Swagger ==========
