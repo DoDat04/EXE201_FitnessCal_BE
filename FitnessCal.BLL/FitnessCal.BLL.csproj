@@ -13,6 +13,7 @@
 
 	<ItemGroup>
 		<!-- Security & JWT dependencies -->
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
 		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.9.0" />
 		<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.9.0" />
 		<PackageReference Include="Microsoft.IdentityModel.Logging" Version="8.9.0" />

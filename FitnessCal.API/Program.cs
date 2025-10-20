@@ -15,6 +15,7 @@ using FitnessCal.BLL.BackgroundService.Define;
 using FitnessCal.BLL.BackgroundService.Implement;
 using FitnessCal.BLL.BackgroundService.Workers;
 using FitnessCal.BLL.Helpers;
+using FitnessCal.BLL.BackgroundService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -202,12 +203,5 @@ app.UseAuthorization();
 app.MapControllers();
 
 // ⚡ Khởi chạy DailyMealLogWorker khi app start
-var worker = app.Services.GetRequiredService<DailyMealLogWorker>();
-var worker1= app.Services.GetRequiredService<MealNotificationWorker>();
-var worker2= app.Services.GetRequiredService<ChangePaymentStatusWorker>();
-var worker3= app.Services.GetRequiredService<DeleteFailedPaymentStatusWorker>();
-worker.Start();
-worker1?.Start();
-worker2?.Start();
-worker3?.Start();
+WorkerInitializer.StartAll(app.Services, app.Logger);
 app.Run();
