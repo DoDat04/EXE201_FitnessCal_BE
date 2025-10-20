@@ -112,20 +112,21 @@ namespace FitnessCal.API.Controllers
             }
         }
         [HttpGet("{userId:guid}")]
-        public async Task<ApiResponse<FeedbacksResponseDTO>> GetFeedbacksByUserId(Guid userId)
+        public async Task<ApiResponse<IEnumerable<FeedbacksResponseDTO>>> GetFeedbacksByUserId(Guid userId)
         {
             try
             {
                 var feedbacks = await _feedbacksService.GetFeedbackByIdAsync(userId);
-                return new ApiResponse<FeedbacksResponseDTO>
+                return new ApiResponse<IEnumerable<FeedbacksResponseDTO>>
                 {
+                    Message = "Lấy feedback thành công.",
                     Success = true,
                     Data = feedbacks
                 };
             }
             catch (Exception ex)
             {
-                return new ApiResponse<FeedbacksResponseDTO>
+                return new ApiResponse<IEnumerable<FeedbacksResponseDTO>>
                 {
                     Success = false,
                     Message = ex.Message
