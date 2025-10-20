@@ -114,5 +114,27 @@ namespace FitnessCal.BLL.Implement
             await _unitOfWork.Save();
             return true;
         }
+
+        public async Task<FeedbacksResponseDTO> GetFeedbackByIdAsync(Guid userId)
+        {
+            var currentUserId = _currentUserIdHelper.GetCurrentUserId();
+            if (userId != currentUserId)
+            {
+                throw new UnauthorizedAccessException("Bạn không có quyền truy cập phản hồi này.");
+            }
+            var feedback = await _unitOfWork.Feedbacks.FirstOrDefaultAsync(f => f.UserId == userId);
+            if (feedback == null)
+            {
+                throw new KeyNotFoundException("Phản hồi không tồn tại.");
+            }
+            return new FeedbacksResponseDTO
+            {
+                FeedbackId = feedback.FeedbackId,
+                UserId = feedback.UserId,
+                CreatedAt = feedback.CreatedAt,
+                RatingStars = feedback.RatingStars,
+                Contribution = feedback.Contribution
+            };
+        }
     }
 }

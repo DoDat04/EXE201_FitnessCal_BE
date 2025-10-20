@@ -1,4 +1,5 @@
 ﻿using FitnessCal.BLL.Define;
+using FitnessCal.BLL.DTO.CommonDTO;
 using FitnessCal.BLL.DTO.FeedbacksDTO.Request;
 using FitnessCal.BLL.DTO.FeedbacksDTO.Response;
 using Microsoft.AspNetCore.Mvc;
@@ -108,6 +109,27 @@ namespace FitnessCal.API.Controllers
             catch (Exception ex)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, $"Lỗi server: {ex.Message}");
+            }
+        }
+        [HttpGet("{userId:guid}")]
+        public async Task<ApiResponse<FeedbacksResponseDTO>> GetFeedbacksByUserId(Guid userId)
+        {
+            try
+            {
+                var feedbacks = await _feedbacksService.GetFeedbackByIdAsync(userId);
+                return new ApiResponse<FeedbacksResponseDTO>
+                {
+                    Success = true,
+                    Data = feedbacks
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<FeedbacksResponseDTO>
+                {
+                    Success = false,
+                    Message = ex.Message
+                };
             }
         }
     }
