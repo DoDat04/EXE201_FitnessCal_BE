@@ -54,7 +54,11 @@ namespace FitnessCal.BLL.Implement
                     .ToList();
             }
 
-            return feedbacksQuery.Select(f => new FeedbacksResponseDTO
+            var orderedFeedbacks = feedbacksQuery
+                .OrderByDescending(f => f.CreatedAt)
+                .ToList();
+
+            return orderedFeedbacks.Select(f => new FeedbacksResponseDTO
             {
                 FeedbackId = f.FeedbackId,
                 UserId = f.UserId,

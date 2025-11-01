@@ -6,6 +6,7 @@ namespace FitnessCal.BLL.Define
     {
         Task<List<UserSubscriptionResponseDTO>> GetAllUserSubscriptionsAsync();
         Task<int> CountUserSubcriptionsInPackageAsync(int packageId);
+        Task<int> GetTotalSubscriptionsPaymentsAsync();
         Task<UserSubscriptionResponseDTO> GetUserSubscriptionByIdAsync(Guid userId);
         Task CheckAndUpdateExpiredSubscriptionsAsync(CancellationToken cancellationToken = default);
         Task DeleteFailedPaymentsAsync(CancellationToken cancellationToken = default);
