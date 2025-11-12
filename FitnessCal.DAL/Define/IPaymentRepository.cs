@@ -9,6 +9,7 @@ namespace FitnessCal.DAL.Define
         Task MarkFailedAsync(int paymentId);
         Task<string?> GetStatusByOrderCodeAsync(int orderCode);
         Task<List<Payment>> GetAllWithDetailsAsync();
+        Task<List<Payment>> GetPaidPaymentsWithDetailsAsync();
         Task CleanupExpiredPendingPaymentsAsync(int expirationMinutes = 30);
     }
 }

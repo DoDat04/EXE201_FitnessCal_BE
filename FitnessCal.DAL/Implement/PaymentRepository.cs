@@ -51,6 +51,17 @@ namespace FitnessCal.DAL.Implement
                 .ToListAsync();
         }
 
+        public async Task<List<Payment>> GetPaidPaymentsWithDetailsAsync()
+        {
+            return await _dbSet.AsNoTracking()
+                .Include(p => p.Subscription)
+                .ThenInclude(s => s.Package)
+                .Include(p => p.User)
+                .Where(p => p.PaidAt.HasValue)
+                .OrderByDescending(p => p.PaidAt)
+                .ToListAsync();
+        }
+
         public async Task CleanupExpiredPendingPaymentsAsync(int expirationMinutes = 30)
         {
             var expirationTime = DateTime.UtcNow.AddMinutes(-expirationMinutes);

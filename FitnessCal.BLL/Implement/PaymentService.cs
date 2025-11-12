@@ -281,23 +281,14 @@ namespace FitnessCal.BLL.Implement
 
         public async Task<List<GetAllPaymentsResponse>> GetAllPayments()
         {
-            var payments = await _uow.Payments.GetAllWithDetailsAsync();
-            payments = payments
-                .Where(p => p.PaidAt.HasValue)
-                .OrderByDescending(p => p.PaidAt)
-                .ToList();
+            var payments = await _uow.Payments.GetPaidPaymentsWithDetailsAsync();
             var result = new List<GetAllPaymentsResponse>();
 
             foreach (var payment in payments)
             {
-                var sub = await _uow.UserSubscriptions.GetByIdAsync(payment.SubscriptionId);
-                var user = await _uow.Users.GetByIdAsync(payment.UserId);
-                PremiumPackage? pkg = null;
-                
-                if (sub != null)
-                {
-                    pkg = await _uow.PremiumPackages.GetByIdAsync(sub.PackageId);
-                }
+                var sub = payment.Subscription;
+                var user = payment.User;
+                var pkg = sub?.Package;
 
                 result.Add(new GetAllPaymentsResponse
                 {
