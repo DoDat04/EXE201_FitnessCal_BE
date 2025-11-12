@@ -14,12 +14,14 @@ namespace FitnessCal.API.Controllers
     public class DashboardController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly ISubscriptionService _subscriptionService;
         private readonly ILogger<DashboardController> _logger;
 
-        public DashboardController(IUserService userService, ILogger<DashboardController> logger)
+        public DashboardController(IUserService userService, ILogger<DashboardController> logger, ISubscriptionService subscriptionService)
         {
             _userService = userService;
             _logger = logger;
+            _subscriptionService = subscriptionService;
         }
 
         [HttpGet("user-statistics")]
@@ -117,6 +119,32 @@ namespace FitnessCal.API.Controllers
                     Data = null
                 };
 
+                return StatusCode(500, response);
+            }
+        }
+        [HttpGet("total-subscriptions-payments")]
+        public async Task<ActionResult<ApiResponse<int>>> GetTotalSubscriptionsPayments()
+        {
+            try
+            {
+                var totalPayments = await _subscriptionService.GetTotalSubscriptionsPaymentsAsync();
+                var response = new ApiResponse<int>
+                {
+                    Success = true,
+                    Message = "Total subscriptions payments retrieved successfully",
+                    Data = totalPayments
+                };
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while retrieving total subscriptions payments");
+                var response = new ApiResponse<int>
+                {
+                    Success = false,
+                    Message = "Failed to retrieve total subscriptions payments",
+                    Data = 0
+                };
                 return StatusCode(500, response);
             }
         }

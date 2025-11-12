@@ -172,5 +172,12 @@ namespace FitnessCal.BLL.Implement
             }
             return _unitOfWork.Save();
         }
+
+        public async Task<int> GetTotalSubscriptionsPaymentsAsync()
+        {
+            var totalPayments = await _unitOfWork.UserSubscriptions
+                .GetAllAsync(s => s.PaymentStatus == "paid" || s.PaymentStatus == "expired");
+            return totalPayments.Count();
+        }
     }
 }

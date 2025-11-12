@@ -44,9 +44,8 @@ namespace FitnessCal.BLL.Implement
         public async Task<IEnumerable<FeedbacksResponseDTO>> GetAllFeedbacksAsync(int? stars, DateTime? searchDate)
         {
             var feedbacksQuery = await _unitOfWork.Feedbacks.GetAllAsync(f =>
-                    !stars.HasValue || f.RatingStars == stars.Value
+                    !stars.HasValue || f.RatingStars == stars.Value, f=> f.User
                 );
-
             if (searchDate.HasValue)
             {
                 var localDate = searchDate.Value.Date;
@@ -55,10 +54,15 @@ namespace FitnessCal.BLL.Implement
                     .ToList();
             }
 
-            return feedbacksQuery.Select(f => new FeedbacksResponseDTO
+            var orderedFeedbacks = feedbacksQuery
+                .OrderByDescending(f => f.CreatedAt)
+                .ToList();
+
+            return orderedFeedbacks.Select(f => new FeedbacksResponseDTO
             {
                 FeedbackId = f.FeedbackId,
                 UserId = f.UserId,
+                UserName = f.User.FirstName + " " + f.User.LastName,
                 CreatedAt = f.CreatedAt,
                 RatingStars = f.RatingStars,
                 Contribution = f.Contribution
